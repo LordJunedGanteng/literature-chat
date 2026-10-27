@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Literature Chat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="frame">
+
+  <!-- ===== top bar ===== -->
+  <header class="top">
+    <div class="logo" title="Literature Chat"><i data-i="book"></i></div>
+    <nav class="pills">
+      <button data-view="chat" class="on">Chat</button>
+      <button data-view="tabel">Tabel <span class="badge" id="cnt">0</span></button>
+      <button data-view="bantuan">Bantuan</button>
+    </nav>
+    <div class="tray">
+      <button class="ib" id="lightBtn" title="Tema terang"><i data-i="sun"></i></button>
+      <button class="ib" id="darkBtn" title="Tema gelap"><i data-i="moon"></i></button>
+      <button class="ib only-narrow" id="histBtn" title="Riwayat"><i data-i="history"></i></button>
+      <button class="ib hide-sm" id="topXlsx" title="Download tabel (.xlsx)"><i data-i="download"></i></button>
+    </div>
+  </header>
+
+  <!-- ===== rail kiri ===== -->
+  <aside class="rail">
+    <button class="ib on" data-view="chat" title="Chat"><i data-i="chat"></i></button>
+    <button class="ib" data-view="tabel" title="Tabel format xlsx"><i data-i="table"></i></button>
+    <button class="ib" id="railXlsx" title="Download .xlsx"><i data-i="sheet"></i></button>
+    <button class="ib" id="railFilter" title="Filter pencarian"><i data-i="sliders"></i></button>
+    <button class="ib" data-view="bantuan" title="Bantuan"><i data-i="help"></i></button>
+    <div class="grow"></div>
+    <button class="ib" id="railNew" title="Chat baru"><i data-i="plus"></i></button>
+  </aside>
+
+  <!-- ===== CHAT ===== -->
+  <section class="view view-chat on" id="view-chat">
+    <div class="panel chat">
+      <div class="phead">
+        <h2>Literature Chat</h2>
+        <button class="ib" id="menuBtn" title="Chat baru"><i data-i="more"></i></button>
+      </div>
+      <div class="msgs" id="msgs"></div>
+
+      <div class="chatwrap">
+        <div class="pop" id="pop" hidden>
+          <h3>Filter pencarian</h3>
+          <div class="grid2">
+            <label class="fld"><span>Tahun dari</span><input type="number" id="y1" placeholder="mis. 2015" min="1800" max="2100"></label>
+            <label class="fld"><span>Tahun s/d</span><input type="number" id="y2" placeholder="mis. 2026" min="1800" max="2100"></label>
+            <label class="fld"><span>Urutkan</span>
+              <select id="sort">
+                <option value="relevance">Paling relevan</option>
+                <option value="cited">Paling banyak disitasi</option>
+                <option value="newest">Paling baru</option>
+              </select></label>
+            <label class="fld"><span>Sumber data</span>
+              <select id="src">
+                <option value="openalex">OpenAlex</option>
+                <option value="crossref">Crossref</option>
+              </select></label>
+          </div>
+          <label class="chk"><input type="checkbox" id="oaOnly"> Hanya open access (bisa dibaca gratis)</label>
+          <label class="chk"><input type="checkbox" id="artOnly" checked> Hanya artikel jurnal</label>
+          <label class="fld" style="margin-top:14px"><span>OpenAlex API key (opsional)</span>
+            <input type="text" id="apiKey" placeholder="tempel key dari openalex.org/settings/api" autocomplete="off"></label>
+          <p class="note">Filter ini jadi default. Lo juga bisa nulis langsung di chat, mis. “2018-2024”, “open access”, “terbaru”.</p>
+        </div>
+
+        <form class="composer" id="composer" autocomplete="off">
+          <textarea id="input" rows="1" placeholder="Mau cari literatur tentang apa? mis. sexual harassment di industri kreatif 2015-2025"></textarea>
+          <div class="crow">
+            <button type="button" class="ib" id="filterBtn" title="Filter"><i data-i="sliders"></i></button>
+            <button type="button" class="ib" id="importBtn" title="Impor entri dari file xlsx lama"><i data-i="upload"></i></button>
+            <div class="chips" id="chips"></div>
+            <button type="button" class="ib" id="micBtn" title="Ngomong (voice input)"><i data-i="mic"></i></button>
+            <button type="submit" class="send" id="sendBtn" title="Kirim"><i data-i="send"></i></button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <aside class="panel history" id="history">
+      <div class="phead">
+        <h2>Riwayat</h2>
+        <button class="newchat" id="newChatBtn"><i data-i="plus"></i> Chat Baru</button>
+        <button class="ib sm only-narrow" id="histClose" title="Tutup" style="margin-left:6px"><i data-i="x"></i></button>
+      </div>
+      <div class="hlist" id="hlist"></div>
+    </aside>
+  </section>
+
+  <!-- ===== TABEL ===== -->
+  <section class="view view-tabel" id="view-tabel">
+    <div class="panel">
+      <div class="phead">
+        <h2>Tabel format xlsx</h2>
+        <span class="sub">NO · LINK · TAHUN · REFERENSI · RINGKASAN</span>
+      </div>
+      <div class="tbar">
+        <label class="fld"><span>Format referensi</span>
+          <select id="style">
+            <option value="apa">APA 7</option>
+            <option value="ieee">IEEE</option>
+            <option value="mla">MLA 9</option>
+            <option value="harvard">Harvard</option>
+            <option value="vancouver">Vancouver</option>
+          </select></label>
+        <label class="fld"><span>Urutan baris</span>
+          <select id="sortTable">
+            <option value="added">Urutan ditambahkan</option>
+            <option value="az">Alfabetis penulis</option>
+            <option value="year">Tahun terbaru</option>
+          </select></label>
+        <div class="sp"></div>
+        <button class="pbtn go" id="xlsxBtn"><i data-i="download"></i> Download .xlsx</button>
+        <button class="pbtn" id="tsvBtn"><i data-i="copy"></i> Copy ke Excel</button>
+        <button class="pbtn" id="csvBtn">CSV</button>
+        <button class="pbtn" id="docBtn">Word</button>
+        <button class="pbtn danger" id="clearBtn"><i data-i="trash"></i> Kosongkan</button>
+      </div>
+      <div class="stats" id="tStats"></div>
+      <div class="tscroll">
+        <div class="tablewrap" id="tableWrap"></div>
+        <div class="secth"><h3>Daftar pustaka</h3><div class="ln"></div>
+          <button class="pbtn" id="copyBiblioBtn"><i data-i="copy"></i> Copy</button></div>
+        <div class="biblio" id="biblio"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== BANTUAN ===== -->
+  <section class="view view-bantuan" id="view-bantuan">
+    <div class="panel">
+      <div class="phead"><h2>Cara pakai</h2></div>
+      <div class="help">
+        <h3>1. Tanya kayak ngobrol</h3>
+        <p>Ketik topik di chat. Bot nyari jurnal beneran di OpenAlex / Crossref dan nampilin hasilnya sebagai kartu.</p>
+        <ul>
+          <li><code>precarity animation workers</code></li>
+          <li><code>gender gap VFX industry 2018-2025 open access</code></li>
+          <li><code>generative AI creative work terbaru</code></li>
+          <li><code>sexual harassment creative industries paling banyak disitasi</code></li>
+        </ul>
+        <h3>2. Filter langsung di kalimat</h3>
+        <ul>
+          <li>Tahun: <code>2018-2024</code>, <code>dari 2015</code>, <code>sebelum 2020</code>, <code>5 tahun terakhir</code></li>
+          <li>Akses: <code>open access</code> / <code>gratis</code></li>
+          <li>Urutan: <code>terbaru</code>, <code>paling banyak disitasi</code> / <code>populer</code></li>
+          <li>Sumber: <code>pakai crossref</code></li>
+        </ul>
+        <h3>3. Masukin ke tabel</h3>
+        <p>Klik <b>+ Tabel</b> di kartu, atau ikon “tambah semua” di bawah balasan bot. Tabel otomatis berformat kolom xlsx lo (NO, LINK, TAHUN, REFERENSI, RINGKASAN). RINGKASAN diisi draft dari abstrak (masih bahasa Inggris) — klik selnya buat edit.</p>
+        <h3>4. Export</h3>
+        <p>Tab <b>Tabel</b> → <b>Download .xlsx</b>, atau <b>Copy ke Excel</b> lalu paste ke file lama lo. Bisa juga ketik <code>download</code> di chat.</p>
+        <h3>Catatan</h3>
+        <p>Kata kunci bahasa Inggris biasanya dapet hasil jauh lebih banyak. Semua data (tabel &amp; riwayat) disimpan di browser ini saja.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div id="modalRoot"></div>
+<script src="core.js"></script>
+<script src="ui.js"></script>
+</body>
+</html>
