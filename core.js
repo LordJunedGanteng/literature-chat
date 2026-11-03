@@ -581,3 +581,33 @@ function editSummary(id) {
   $('#mSum').focus();
 }
 
+
+/* ======================= status maintenance (dipakai index & admin) ======================= */
+
+const ADMIN_BYPASS = 'litrev.adminBypass';
+
+async function fetchStatus() {
+  const r = await fetch('status.json?t=' + Date.now(), { cache: 'no-store' });
+  if (!r.ok) throw new Error('status.json ' + r.status);
+  return r.json();
+}
+
+function isAdminBypass() {
+  try { return +localStorage.getItem(ADMIN_BYPASS) > Date.now(); } catch (e) { return false; }
+}
+
+function formatUntil(v) {
+  if (!v) return '';
+  const d = new Date(v);
+  if (isNaN(d)) return '';
+  return 'Perkiraan selesai: ' + d.toLocaleString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+}
+
+// isi kartu maintenance di dalam `root` (layar user atau pratinjau admin)
+function fillMaint(root, s) {
+  root.querySelector('[data-m="title"]').textContent = s.title || 'Lagi maintenance sebentar';
+  root.querySelector('[data-m="msg"]').textContent = s.message || '';
+  const u = root.querySelector('[data-m="until"]');
+  u.textContent = formatUntil(s.until);
+  u.hidden = !u.textContent;
+}

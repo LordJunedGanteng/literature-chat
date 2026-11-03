@@ -17,3 +17,9 @@ node serve.js
 lalu buka http://localhost:5178
 
 Data jurnal dari [OpenAlex](https://openalex.org) dan [Crossref](https://www.crossref.org).
+
+## Admin & mode maintenance
+Buka `admin.html` → login password admin → nyalain/matiin **mode maintenance**.
+Saklarnya disimpan di `status.json`; web ngecek file ini tiap dibuka & tiap 1 menit.
+Buat menyimpan perubahan, admin perlu token GitHub *fine-grained* (repo ini saja, izin **Contents: Read and write**) yang disimpan hanya di browser admin.
+Password admin cuma disimpan sebagai hash PBKDF2 — ini kunci tampilan, bukan pengaman utama; pengamannya adalah token GitHub.

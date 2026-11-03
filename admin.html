@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Admin · Literature Chat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,400;6..144,500;6..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="sg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4285f4"/><stop offset=".55" stop-color="#9b72cb"/><stop offset="1" stop-color="#d96570"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<div class="adm">
+
+  <!-- ===== login ===== -->
+  <section class="adm-login" id="login">
+    <form id="loginForm" autocomplete="off">
+      <svg class="star" viewBox="0 0 24 24" aria-hidden="true"><path fill="url(#sg)" d="M12 2C12 7.523 16.477 12 22 12C16.477 12 12 16.477 12 22C12 16.477 7.523 12 2 12C7.523 12 12 7.523 12 2Z"/></svg>
+      <h1>Admin</h1>
+      <p>Literature Chat</p>
+      <input type="password" id="pw" placeholder="Password admin" autocomplete="current-password" required>
+      <button class="pbtn tonal" id="loginBtn" type="submit">Masuk</button>
+      <p class="adm-err" id="loginErr"></p>
+      <a class="back" href="./">← Kembali ke web</a>
+    </form>
+  </section>
+
+  <!-- ===== dashboard ===== -->
+  <section id="dash" hidden>
+    <header class="adm-top">
+      <svg class="star" viewBox="0 0 24 24" aria-hidden="true"><path fill="url(#sg)" d="M12 2C12 7.523 16.477 12 22 12C16.477 12 12 16.477 12 22C12 16.477 7.523 12 2 12C7.523 12 12 7.523 12 2Z"/></svg>
+      <b>Admin</b><span class="muted">· Literature Chat</span>
+      <span class="sp"></span>
+      <a class="pbtn" href="./" target="_blank" rel="noopener">Lihat web ↗</a>
+      <button class="pbtn" id="logoutBtn">Keluar</button>
+    </header>
+
+    <div class="adm-body">
+      <!-- maintenance -->
+      <div class="panel2">
+        <h2>Mode maintenance</h2>
+        <p class="muted">Kalau aktif, semua pengunjung lihat layar maintenance di bawah. Lo (admin) tetap bisa pakai web di browser ini.</p>
+
+        <div class="statusrow">
+          <div class="lbl">
+            <b>Status sekarang di web: <span class="pill off" id="livePill">memuat…</span></b>
+            <small id="liveInfo"></small>
+          </div>
+          <label class="switch" title="Nyalain / matiin maintenance">
+            <input type="checkbox" id="mOn"><span></span>
+          </label>
+        </div>
+
+        <label class="fld"><span>Judul</span><input type="text" id="mTitle" maxlength="80"></label>
+        <label class="fld"><span>Pesan buat pengunjung</span><textarea id="mMsg" maxlength="500"></textarea></label>
+        <label class="fld"><span>Perkiraan selesai (opsional)</span><input type="datetime-local" id="mUntil"></label>
+
+        <div class="adm-acts">
+          <button class="pbtn tonal" id="saveBtn">Simpan &amp; terapkan</button>
+          <button class="pbtn" id="reloadBtn">Muat ulang status</button>
+        </div>
+        <p class="adm-note" id="saveNote">Perubahan butuh sekitar 1 menit sampai kelihatan ke pengunjung (GitHub Pages lagi build ulang).</p>
+      </div>
+
+      <div class="side-col">
+        <!-- pratinjau -->
+        <div class="panel2">
+          <h2>Pratinjau layar pengunjung</h2>
+          <p class="muted">Ikut berubah pas lo ngetik.</p>
+          <div class="preview">
+            <div class="pv-bar"><i></i><i></i><i></i><span id="pvUrl">literature-chat</span></div>
+            <div class="maint-card" id="pv">
+              <svg class="star big" viewBox="0 0 24 24" aria-hidden="true"><path fill="url(#sg)" d="M12 2C12 7.523 16.477 12 22 12C16.477 12 12 16.477 12 22C12 16.477 7.523 12 2 12C7.523 12 12 7.523 12 2Z"/></svg>
+              <h1 class="grad" data-m="title"></h1>
+              <p data-m="msg"></p>
+              <p class="maint-until" data-m="until" hidden></p>
+              <p class="maint-foot">Halaman ini otomatis kebuka lagi begitu maintenance selesai.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- koneksi github -->
+        <div class="panel2">
+          <h2>Koneksi GitHub</h2>
+          <p class="muted">Saklar maintenance disimpan di file <code>status.json</code> di repo. Buat ngubahnya, admin butuh token GitHub. Token cuma disimpan di browser ini, ga pernah ikut ke repo.</p>
+          <div class="tokstate" id="tokState"></div>
+          <div id="tokSetup">
+            <ol class="steps">
+              <li>Buka <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com → Fine-grained token baru</a></li>
+              <li><b>Repository access</b>: Only select repositories → <code id="repoName">literature-chat</code></li>
+              <li><b>Permissions → Contents</b>: Read and write</li>
+              <li>Generate, lalu tempel token di bawah</li>
+            </ol>
+            <label class="fld"><span>Token GitHub</span><input type="password" id="tok" placeholder="github_pat_…" autocomplete="off"></label>
+            <div class="adm-acts"><button class="pbtn tonal" id="tokSave">Simpan &amp; cek token</button></div>
+          </div>
+          <div class="adm-acts" id="tokActions" hidden>
+            <button class="pbtn" id="tokTest">Cek koneksi</button>
+            <button class="pbtn danger" id="tokDel">Hapus token dari browser ini</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="core.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

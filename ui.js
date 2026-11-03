@@ -524,9 +524,28 @@ function autosize() {
   setBusy(busy);
 }
 
+/* ---------- mode maintenance ---------- */
+
+async function checkMaintenance() {
+  let s = null;
+  try { s = await fetchStatus(); } catch (e) { /* offline / file belum ada: anggap normal */ }
+  const on = !!(s && s.maintenance);
+  const admin = isAdminBypass();
+  if (on) fillMaint($('#maint'), s);
+  $('#maint').hidden = !on || admin;
+  $('#adminBar').hidden = !(on && admin);
+  document.documentElement.classList.remove('boot');
+}
+
 /* ======================= init ======================= */
 
 document.addEventListener('DOMContentLoaded', () => {
+  // cek maintenance dulu; kalau status lambat, jangan tahan halaman lebih dari 2,5 detik
+  checkMaintenance();
+  setTimeout(() => document.documentElement.classList.remove('boot'), 2500);
+  setInterval(checkMaintenance, 60000);
+  window.addEventListener('focus', checkMaintenance);
+
   paintIcons();
   loadTable(); loadChats();
   try { $('#apiKey').value = localStorage.getItem('litrev.key') || ''; } catch (e) {}
