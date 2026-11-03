@@ -527,6 +527,7 @@ function autosize() {
 /* ---------- mode maintenance ---------- */
 
 async function checkMaintenance() {
+  if (!$('#maint') || !$('#adminBar')) { document.documentElement.classList.remove('boot'); return; } // HTML lama dari cache
   let s = null;
   try { s = await fetchStatus(); } catch (e) { /* offline / file belum ada: anggap normal */ }
   const on = !!(s && s.maintenance);
