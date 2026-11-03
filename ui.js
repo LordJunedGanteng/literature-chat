@@ -200,7 +200,7 @@ async function send(text) {
   busy = true; typing = true; renderChat(); setBusy(true);
   try {
     const { total, items, src, fellBack } = await fetchPage(q, opts, 1);
-    for (const r of items) if (!r.summary) r.summary = autoSummary(r);
+    for (const r of items) { r.query = q; if (!r.summary) r.summary = autoSummary(r); }
     cur.msgs.push({ role: 'bot', kind: 'results', q, opts, translated, total, results: items, page: 1, src, fellBack, t: Date.now() });
   } catch (e) {
     cur.msgs.push({ role: 'bot', kind: 'error', text: e.message, retry: text, t: Date.now() });
@@ -224,7 +224,7 @@ async function loadMore(mi) {
   try {
     const { items } = await fetchPage(m.q, { ...m.opts, src: m.src }, m.page + 1);
     const seen = new Set(m.results.map(keyOf));
-    for (const r of items) if (!seen.has(keyOf(r))) { r.summary = autoSummary(r); m.results.push(r); }
+    for (const r of items) if (!seen.has(keyOf(r))) { r.query = m.q; r.summary = autoSummary(r); m.results.push(r); }
     m.page += 1;
   } catch (e) {
     toast('Gagal memuat: ' + e.message);
@@ -247,7 +247,7 @@ async function loadAll(mi) {
     for (let pg = 1; (pg - 1) * size < want; pg++) {
       if (label) label.textContent = 'Memuat ' + Math.min(pg * size, want) + ' / ' + want + '…';
       const { items } = await fetchPage(m.q, { ...m.opts, src: m.src, size }, pg);
-      for (const r of items) if (!seen.has(keyOf(r))) { seen.add(keyOf(r)); r.summary = autoSummary(r); m.results.push(r); }
+      for (const r of items) if (!seen.has(keyOf(r))) { seen.add(keyOf(r)); r.query = m.q; r.summary = autoSummary(r); m.results.push(r); }
       if (items.length < size) break;
     }
     m.results = m.results.slice(0, want);
@@ -380,12 +380,11 @@ const isMobile = () => matchMedia('(max-width: 860px)').matches;
 
 function exportXlsx(rows) {
   const matrix = rows ? matrixFrom(rows) : exportMatrix();
-  download('Literature Review ' + new Date().toISOString().slice(0, 10) + '.xlsx', '', buildXlsx(matrix, 'Sheet1'));
+  download('Literature Review' + (curFormat() === 'b' ? ' (analisis)' : '') + ' ' + new Date().toISOString().slice(0, 10) + '.xlsx', '', buildXlsx(matrix, 'Sheet1', curFormat()));
 }
 
 function matrixFrom(recs) {
-  const style = $('#style').value;
-  return [COLS].concat(recs.map((r, i) => [String(i + 1), r.url || doiLink(r), r.year || '', citation(r, style), r.summary || '']));
+  return matrixOf(recs);
 }
 
 function pick(attr) {
@@ -663,16 +662,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const del = e.target.closest('[data-del]');
     if (del) { table = table.filter(r => r.id !== del.dataset.del); saveTable(); renderTable(); return; }
     const ed = e.target.closest('[data-edit]');
-    if (ed) editSummary(ed.dataset.edit);
+    if (ed) editRecord(ed.dataset.edit, ed.dataset.field);
   });
   $('#style').onchange = renderTable;
+  try { $('#tFormat').value = localStorage.getItem('litrev.tformat') || 'a'; } catch (e) {}
+  $('#tFormat').onchange = () => { try { localStorage.setItem('litrev.tformat', $('#tFormat').value); } catch (e) {} renderTable(); };
   $('#sortTable').onchange = renderTable;
   const needRows = (fn) => () => { if (!table.length) return toast('Tabel masih kosong'); fn(); };
   $('#xlsxBtn').onclick = needRows(() => exportXlsx());
   $('#topXlsx').onclick = needRows(() => exportXlsx());
   $('#csvBtn').onclick = needRows(() => download('literature-review.csv', 'text/csv;charset=utf-8', toCSV(exportMatrix())));
   $('#tsvBtn').onclick = needRows(() => copyText(toTSV(exportMatrix()), 'Tercopy — tinggal paste di Excel'));
-  $('#docBtn').onclick = needRows(() => download('literature-review.doc', 'application/msword', toDoc(exportMatrix())));
+  $('#docBtn').onclick = needRows(() => download('literature-review.doc', 'application/msword', toDoc(exportMatrix(), curFormat())));
   $('#copyBiblioBtn').onclick = needRows(() => {
     const st = $('#style').value, numbered = st === 'ieee' || st === 'vancouver';
     const rows = sortedTable();

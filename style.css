@@ -419,3 +419,14 @@ button.btn.danger { color: var(--danger); }
   .srcpill { display: none; }
   .crow .chips { display: none; }
 }
+
+/* ================= tabel format analisis ================= */
+#tFormat { min-width: 250px; }
+.tbar .fld:has(#tFormat) { width: 270px; }
+table.fmt-b { min-width: 1500px; }
+table.fmt-b th { background: #f9cb9c; color: #1f1f1f; text-align: center; border: 1px solid #000; }
+table.fmt-b td { border: 1px solid var(--line); }
+.celllink a { word-break: break-all; }
+.cellwide { min-width: 180px; max-width: 360px; color: var(--ink-2); }
+.editable { cursor: text; border-radius: 6px; margin: -3px -5px; padding: 3px 5px; }
+.editable:hover { background: var(--hover); }

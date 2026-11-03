@@ -97,6 +97,10 @@ function fromOpenAlex(w) {
     oa: !!(w.open_access && w.open_access.is_oa),
     citedBy: w.cited_by_count || 0,
     abstract: reconstructAbstract(w.abstract_inverted_index),
+    keywords: [...new Set([
+      ...(w.keywords || []).map(k => k.display_name),
+      w.primary_topic && w.primary_topic.display_name
+    ].filter(Boolean))].slice(0, 5),
     summary: ''
   };
 }
@@ -120,6 +124,7 @@ function fromCrossref(it) {
     oa: false,
     citedBy: it['is-referenced-by-count'] || 0,
     abstract: decodeEntities(String(it.abstract || '').replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').replace(/^\s*Abstract[:.]?\s*/i, '').trim(),
+    keywords: (it.subject || []).slice(0, 5),
     summary: ''
   };
 }
@@ -266,6 +271,83 @@ function autoSummary(r) {
   return 'Studi ' + inText(r) + ' berjudul "' + (r.title || '') + '". Inti abstrak: ' + pick;
 }
 
+/* ======================= kolom analisis otomatis (format B) ======================= */
+// Semua tebakan dari abstrak — draft yang wajib dicek user.
+
+const METHOD_CUES = [
+  [/systematic (literature )?review|scoping review|PRISMA/i, 'Systematic/scoping review'],
+  [/meta-?analy/i, 'Meta-analysis'],
+  [/mixed[- ]methods?/i, 'Mixed methods'],
+  [/interview/i, 'Wawancara'],
+  [/focus group/i, 'Focus group'],
+  [/ethnograph/i, 'Etnografi'],
+  [/case stud/i, 'Studi kasus'],
+  [/survey|questionnaire/i, 'Survei/kuesioner'],
+  [/experiment|randomi[sz]ed/i, 'Eksperimen'],
+  [/content analysis|discourse analysis|thematic analysis|textual analysis/i, 'Analisis konten/tematik'],
+  [/regression|structural equation|\bSEM\b|statistical analysis|panel data/i, 'Analisis statistik'],
+  [/literature review|review of (the )?literature/i, 'Literature review'],
+  [/qualitative/i, 'Kualitatif'],
+  [/quantitative/i, 'Kuantitatif']
+];
+const FINDING_CUE = /\b(find|finds|found|findings?|results?|show(s|ed|n)?|reveal(s|ed)?|suggest(s|ed)?|indicate(s|d)?|demonstrate(s|d)?|conclude(s|d)?|highlight(s|ed)?|argue(s|d)?)\b/i;
+const GAP_CUE = /\b(future (research|studies|work)|further (research|studies|investigation)|limitations?|research gap|little is known|(remain|remains) (unclear|unexplored|limited|understudied)|lack of (research|studies|evidence)|under-?(studied|explored|researched)|has received (little|limited) attention|needs? (more|further))\b/i;
+const STOP = new Set('the of and in on for to a an with by from at as is are be or its into about'.split(' '));
+
+function autoMethod(r) {
+  const txt = (r.title || '') + ' ' + (r.abstract || '');
+  const out = [];
+  for (const [re, label] of METHOD_CUES) if (re.test(txt) && !out.includes(label)) out.push(label);
+  // "Kualitatif"/"Kuantitatif" cuma ditampilkan kalau belum ada metode yang lebih spesifik
+  const specific = out.filter(x => x !== 'Kualitatif' && x !== 'Kuantitatif');
+  return (specific.length ? specific : out).slice(0, 3).join(', ');
+}
+
+function autoFinding(r) {
+  // buang kalimat yang isinya daftar bab (abstrak buku di OpenAlex kadang cuma daftar isi)
+  const ss = sentences(r.abstract).filter(s => !GAP_CUE.test(s) && (s.match(/\bchapter\b/gi) || []).length < 2);
+  if (!ss.length) return '';
+  const hit = ss.filter(s => FINDING_CUE.test(s)).slice(0, 2);
+  return (hit.length ? hit : ss.slice(-2)).join(' ').slice(0, 600);
+}
+
+function autoGap(r) {
+  return sentences(r.abstract).filter(s => GAP_CUE.test(s)).slice(0, 2).join(' ').slice(0, 500);
+}
+
+function autoTopic(r) {
+  if (r.keywords && r.keywords.length) return r.keywords.join('; ');
+  return r.query || '';
+}
+
+function autoRelevancy(r) {
+  const q = String(r.query || '').toLowerCase().split(/[^a-z0-9À-ɏ]+/).filter(w => w.length > 2 && !STOP.has(w));
+  if (!q.length) return '';
+  const hay = ((r.title || '') + ' ' + (r.abstract || '') + ' ' + (r.keywords || []).join(' ')).toLowerCase();
+  const hit = q.filter(w => hay.includes(w.replace(/s$/, '')));
+  const ratio = hit.length / q.length;
+  const level = ratio >= 0.75 ? 'Tinggi' : ratio >= 0.4 ? 'Sedang' : 'Rendah';
+  return level + ' — cocok ' + hit.length + '/' + q.length + ' kata kunci' + (hit.length ? ' (' + hit.join(', ') + ')' : '');
+}
+
+function authorText(r) {
+  if (r.authors && r.authors.length) return authorsAPA(r.authors);
+  const raw = r.rawRef || '';
+  const m = raw.match(/^(.{2,160}?)\s*\(?\b(19|20)\d{2}\b/);
+  return (m ? m[1] : raw.slice(0, 80)).replace(/[\s,.(]+$/, '');
+}
+
+// isi kolom analisis yang masih kosong (tidak menimpa hasil edit user)
+function fillAnalysis(r, force) {
+  const set = (k, fn) => { if (force || r[k] == null || r[k] === '') r[k] = fn(r); };
+  set('topicKw', autoTopic);
+  set('method', autoMethod);
+  set('finding', autoFinding);
+  set('relevancy', autoRelevancy);
+  set('gap', autoGap);
+  return r;
+}
+
 /* ======================= pencarian ======================= */
 
 async function searchOpenAlex(q, opts, pg, broad) {
@@ -312,7 +394,44 @@ async function searchCrossref(q, opts, pg) {
 
 /* ======================= tabel format xlsx ======================= */
 
-const COLS = ['NO', 'LINK', 'TAHUN', 'REFERENSI', 'RINGKASAN'];
+// a = format file lama, b = format analisis (Author/Year/Topic/Method/Finding/Relevancy/Gap/Link)
+const FORMATS = {
+  a: {
+    label: 'Format awal',
+    cols: ['NO', 'LINK', 'TAHUN', 'REFERENSI', 'RINGKASAN'],
+    widths: [6, 46, 9, 64, 80],
+    head: 'FFEFEFEF',
+    edit: { 4: 'summary' }
+  },
+  b: {
+    label: 'Format analisis',
+    cols: ['NO', 'Author', 'Year', 'Topic/Keyword', 'Method', 'Main Finding', 'Relevancy', 'Research Gap', 'Link'],
+    widths: [6, 30, 8, 30, 24, 60, 30, 50, 42],
+    head: 'FFF9CB9C',
+    edit: { 3: 'topicKw', 4: 'method', 5: 'finding', 6: 'relevancy', 7: 'gap' }
+  }
+};
+const LINK_COL = { a: 1, b: 8 };
+
+function curFormat() {
+  const el = document.querySelector('#tFormat');
+  return el && el.value === 'b' ? 'b' : 'a';
+}
+
+function rowValues(r, i, fmt, style) {
+  const link = r.url || doiLink(r);
+  if (fmt === 'b') {
+    fillAnalysis(r);
+    return [String(i + 1), authorText(r), r.year || '', r.topicKw || '', r.method || '', r.finding || '', r.relevancy || '', r.gap || '', link];
+  }
+  return [String(i + 1), link, r.year || '', citation(r, style), r.summary || ''];
+}
+
+function matrixOf(recs, fmt) {
+  fmt = fmt || curFormat();
+  const style = $('#style').value;
+  return [FORMATS[fmt].cols].concat(recs.map((r, i) => rowValues(r, i, fmt, style)));
+}
 
 function sortedTable() {
   const mode = $('#sortTable').value;
@@ -322,49 +441,44 @@ function sortedTable() {
   return rows;
 }
 
-function tableRows() {
-  const style = $('#style').value;
-  return sortedTable().map((r, i) => ({
-    rec: r,
-    no: i + 1,
-    link: r.url || doiLink(r),
-    year: r.year || '',
-    ref: citation(r, style),
-    sum: r.summary || ''
-  }));
-}
-
 function renderTable() {
-  const rows = tableRows();
+  const fmt = curFormat();
+  const F = FORMATS[fmt];
+  const recs = sortedTable();
   const wrap = $('#tableWrap');
-  if (!rows.length) {
+  if (!recs.length) {
     wrap.innerHTML = '<div class="empty"><h3>Tabel masih kosong</h3>'
       + '<p class="muted">Tanya topik di <b>Chat</b>, lalu klik “+ Tabel” di kartu jurnal.</p></div>';
   } else {
-    wrap.innerHTML = '<table><thead><tr>'
-      + COLS.map(c => '<th>' + c + '</th>').join('') + '<th></th></tr></thead><tbody>'
-      + rows.map(row => '<tr>'
-        + '<td class="num">' + row.no + '</td>'
-        + '<td><a href="' + esc(row.link) + '" target="_blank" rel="noopener" style="word-break:break-all">'
-          + esc(row.link.length > 48 ? row.link.slice(0, 48) + '…' : row.link) + '</a></td>'
-        + '<td>' + esc(row.year) + '</td>'
-        + '<td class="cellref">' + esc(row.ref) + '</td>'
-        + '<td class="cellsum"><div class="trunc3" data-edit="' + row.rec.id + '" style="cursor:text">'
-          + (row.sum ? esc(row.sum) : '<span class="muted">— klik untuk tulis ringkasan —</span>') + '</div></td>'
-        + '<td><button class="btn sm danger" data-del="' + row.rec.id + '" title="Hapus baris">×</button></td>'
-        + '</tr>').join('')
+    const m = matrixOf(recs, fmt);
+    if (fmt === 'b') saveTable(); // simpan hasil auto-isi kolom analisis
+    wrap.innerHTML = '<table class="fmt-' + fmt + '"><thead><tr>'
+      + F.cols.map(c => '<th>' + esc(c) + '</th>').join('') + '<th></th></tr></thead><tbody>'
+      + m.slice(1).map((row, ri) => {
+        const rec = recs[ri];
+        return '<tr>' + row.map((val, ci) => {
+          if (ci === 0) return '<td class="num">' + val + '</td>';
+          if (ci === LINK_COL[fmt]) return '<td class="celllink"><a href="' + esc(val) + '" target="_blank" rel="noopener">'
+            + esc(val.length > 48 ? val.slice(0, 48) + '…' : val) + '</a></td>';
+          const field = F.edit[ci];
+          if (field) return '<td class="cellwide"><div class="trunc3 editable" data-edit="' + rec.id + '" data-field="' + field + '">'
+            + (val ? esc(val) : '<span class="muted">— klik buat isi —</span>') + '</div></td>';
+          return '<td class="' + (ci === 3 && fmt === 'a' ? 'cellref' : '') + '">' + esc(val) + '</td>';
+        }).join('')
+          + '<td><button class="btn sm danger" data-del="' + rec.id + '" title="Hapus baris">×</button></td></tr>';
+      }).join('')
       + '</tbody></table>';
   }
 
-  const withSum = table.filter(r => r.summary).length;
   const years = table.map(r => parseInt(r.year)).filter(Boolean);
-  $('#tStats').innerHTML = [
-    ['Entri', table.length],
-    ['Ada ringkasan', withSum + '/' + table.length],
-    ['Open access', table.filter(r => r.oa).length],
-    ['Rentang tahun', years.length ? Math.min(...years) + '–' + Math.max(...years) : '—'],
-    ['Total sitasi', table.reduce((s, r) => s + (r.citedBy || 0), 0)]
-  ].map(([k, v]) => '<div class="stat"><div class="v">' + v + '</div><div class="k">' + k + '</div></div>').join('');
+  const filled = (k) => table.filter(r => r[k]).length + '/' + table.length;
+  const stats = fmt === 'b'
+    ? [['Entri', table.length], ['Ada metode', filled('method')], ['Ada main finding', filled('finding')],
+       ['Ada research gap', filled('gap')], ['Rentang tahun', years.length ? Math.min(...years) + '–' + Math.max(...years) : '—']]
+    : [['Entri', table.length], ['Ada ringkasan', filled('summary')], ['Open access', table.filter(r => r.oa).length],
+       ['Rentang tahun', years.length ? Math.min(...years) + '–' + Math.max(...years) : '—'],
+       ['Total sitasi', table.reduce((s, r) => s + (r.citedBy || 0), 0)]];
+  $('#tStats').innerHTML = stats.map(([k, v]) => '<div class="stat"><div class="v">' + v + '</div><div class="k">' + k + '</div></div>').join('');
 
   const style = $('#style').value;
   const numbered = (style === 'ieee' || style === 'vancouver');
@@ -386,8 +500,7 @@ function addToTable(rec) {
 /* ======================= export ======================= */
 
 function exportMatrix() {
-  const rows = tableRows();
-  return [COLS].concat(rows.map(r => [String(r.no), r.link, r.year, r.ref, r.sum]));
+  return matrixOf(sortedTable());
 }
 
 function toCSV(matrix) {
@@ -402,13 +515,14 @@ function toTSV(matrix) {
     .replace(/\t/g, ' ').replace(/\r?\n/g, ' ')).join('\t')).join('\n');
 }
 
-function toDoc(matrix) {
+function toDoc(matrix, fmt) {
   const head = matrix[0], body = matrix.slice(1);
+  const fill = '#' + FORMATS[fmt || 'a'].head.slice(2);
   return '<html xmlns:o="urn:schemas-microsoft-com:office:office" '
     + 'xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8">'
-    + '<style>body{font-family:Calibri,sans-serif;font-size:10pt}'
-    + 'table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:5px;vertical-align:top;text-align:left}'
-    + 'th{background:#eee}</style></head><body>'
+    + '<style>@page{size:landscape}body{font-family:Calibri,sans-serif;font-size:10pt}'
+    + 'table{border-collapse:collapse;width:100%}th,td{border:1px solid #000;padding:5px;vertical-align:top;text-align:left}'
+    + 'th{background:' + fill + ';text-align:center}</style></head><body>'
     + '<h2>Literature Review Database</h2><table><tr>'
     + head.map(h => '<th>' + esc(h) + '</th>').join('') + '</tr>'
     + body.map(r => '<tr>' + r.map(c => '<td>' + esc(c).replace(/\n/g, '<br>') + '</td>').join('') + '</tr>').join('')
@@ -482,7 +596,8 @@ function xmlText(s) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function buildXlsx(matrix, sheetName) {
+function buildXlsx(matrix, sheetName, fmt) {
+  const F = FORMATS[fmt || 'a'];
   const rowsXml = matrix.map((row, ri) => {
     const cells = row.map((val, ci) => {
       const ref = colLetter(ci + 1) + (ri + 1);
@@ -496,11 +611,7 @@ function buildXlsx(matrix, sheetName) {
   }).join('');
 
   const widths = '<cols>'
-    + '<col min="1" max="1" width="6" customWidth="1"/>'
-    + '<col min="2" max="2" width="46" customWidth="1"/>'
-    + '<col min="3" max="3" width="9" customWidth="1"/>'
-    + '<col min="4" max="4" width="64" customWidth="1"/>'
-    + '<col min="5" max="5" width="80" customWidth="1"/>'
+    + F.widths.map((w, i) => '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>').join('')
     + '</cols>';
 
   const sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
@@ -515,13 +626,15 @@ function buildXlsx(matrix, sheetName) {
     + '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>'
     + '<fills count="3"><fill><patternFill patternType="none"/></fill>'
     + '<fill><patternFill patternType="gray125"/></fill>'
-    + '<fill><patternFill patternType="solid"><fgColor rgb="FFEFEFEF"/><bgColor indexed="64"/></patternFill></fill></fills>'
-    + '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
+    + '<fill><patternFill patternType="solid"><fgColor rgb="' + F.head + '"/><bgColor indexed="64"/></patternFill></fill></fills>'
+    + '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>'
+    + '<border><left style="thin"><color rgb="FF000000"/></left><right style="thin"><color rgb="FF000000"/></right>'
+    + '<top style="thin"><color rgb="FF000000"/></top><bottom style="thin"><color rgb="FF000000"/></bottom><diagonal/></border></borders>'
     + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
     + '<cellXfs count="3">'
     + '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
-    + '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>'
-    + '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'
+    + '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>'
+    + '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'
     + '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
 
   const files = [
@@ -552,33 +665,43 @@ function buildXlsx(matrix, sheetName) {
   return zipStore(files);
 }
 
-/* ======================= modal edit ringkasan ======================= */
+/* ======================= modal edit isi tabel ======================= */
 
-function editSummary(id) {
+const EDIT_FIELDS = {
+  a: [['summary', 'RINGKASAN', 170]],
+  b: [['topicKw', 'Topic/Keyword', 46], ['method', 'Method', 46], ['finding', 'Main Finding', 120],
+      ['relevancy', 'Relevancy', 60], ['gap', 'Research Gap', 100]]
+};
+const AUTO_FN = { summary: autoSummary, topicKw: autoTopic, method: autoMethod, finding: autoFinding, relevancy: autoRelevancy, gap: autoGap };
+
+function editRecord(id, focusField) {
   const rec = table.find(r => r.id === id);
   if (!rec) return;
+  const fields = EDIT_FIELDS[curFormat()];
   const root = $('#modalRoot');
   root.innerHTML = '<div class="backdrop"><div class="modal">'
-    + '<h2>Ringkasan</h2>'
-    + '<p class="muted" style="margin-top:-8px">' + esc(rec.title || '') + '</p>'
-    + '<div class="fld"><label class="fl">RINGKASAN (kolom E)</label>'
-    + '<textarea id="mSum" style="min-height:170px">' + esc(rec.summary || '') + '</textarea></div>'
+    + '<h2>' + esc(rec.title || authorText(rec) || 'Edit entri') + '</h2>'
+    + '<p class="muted" style="margin-top:-8px">' + esc([authorText(rec), rec.year].filter(Boolean).join(' · ')) + '</p>'
+    + fields.map(([k, label, h]) => '<div class="fld"><label class="fl" for="f_' + k + '">' + label + '</label>'
+      + '<textarea id="f_' + k + '" style="min-height:' + h + 'px">' + esc(rec[k] || '') + '</textarea></div>').join('')
     + (rec.abstract ? '<div class="fld"><label class="fl">Abstrak asli (referensi)</label>'
-        + '<div class="muted" style="max-height:140px;overflow:auto;font-size:13px">' + esc(rec.abstract) + '</div></div>' : '')
+        + '<div class="muted" style="max-height:140px;overflow:auto;font-size:13px">' + esc(rec.abstract) + '</div></div>'
+      : '<p class="muted" style="font-size:13px">Abstrak ga tersedia buat entri ini — isi manual ya.</p>')
     + '<div class="modal-acts">'
-      + (rec.abstract ? '<button class="btn" id="mAuto">Isi ulang dari abstrak</button>' : '')
+      + (rec.abstract || rec.query ? '<button class="btn" id="mAuto">Isi ulang otomatis</button>' : '')
       + '<button class="btn" id="mCancel">Batal</button>'
       + '<button class="btn primary" id="mSave">Simpan</button>'
     + '</div></div></div>';
   const close = () => { root.innerHTML = ''; };
   $('#mCancel').onclick = close;
   root.querySelector('.backdrop').onclick = (e) => { if (e.target.classList.contains('backdrop')) close(); };
-  if ($('#mAuto')) $('#mAuto').onclick = () => { $('#mSum').value = autoSummary(rec); };
+  if ($('#mAuto')) $('#mAuto').onclick = () => { for (const [k] of fields) $('#f_' + k).value = AUTO_FN[k](rec); };
   $('#mSave').onclick = () => {
-    rec.summary = $('#mSum').value.trim();
+    for (const [k] of fields) rec[k] = $('#f_' + k).value.trim();
     saveTable(); renderTable(); close();
   };
-  $('#mSum').focus();
+  const f = $('#f_' + (focusField || fields[0][0])) || $('#f_' + fields[0][0]);
+  f.focus();
 }
 
 

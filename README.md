@@ -5,6 +5,7 @@ Pencari studi literatur ala chatbot. Ketik topik → cari jurnal di OpenAlex / C
 ## Fitur
 - Filter langsung dari kalimat: `2015-2025`, `dari 2018`, `5 tahun terakhir`, `open access`, `terbaru`, `paling banyak disitasi`, `pakai crossref`
 - Istilah umum bahasa Indonesia diterjemahin otomatis ke Inggris
+- Dua format tabel: **awal** (LINK · TAHUN · REFERENSI · RINGKASAN) dan **analisis** (Author · Year · Topic/Keyword · Method · Main Finding · Relevancy · Research Gap · Link) — kolom analisis diisi draft otomatis dari abstrak
 - Format referensi: APA 7, IEEE, MLA 9, Harvard, Vancouver
 - Export: `.xlsx`, CSV, Word, atau copy langsung ke Excel
 - Impor file `.xlsx` lama yang punya header LINK / TAHUN / REFERENSI / RINGKASAN

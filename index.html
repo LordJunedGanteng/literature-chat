@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,400;6..144,500;6..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261103b">
+<link rel="stylesheet" href="style.css?v=20261103c">
 <script>/* pengaman: jangan pernah biarin halaman ketutup lebih dari 3 detik */setTimeout(function(){document.documentElement.classList.remove("boot")},3000)</script>
 </head>
 <body>
@@ -115,10 +115,15 @@
       <div class="page">
         <div class="page-h">
           <h2>Tabel format xlsx</h2>
-          <p class="muted">NO · LINK · TAHUN · REFERENSI · RINGKASAN — klik sel ringkasan buat edit</p>
+          <p class="muted">Pilih format kolom di bawah — klik sel yang bisa diisi buat edit</p>
         </div>
         <div class="tbar">
-          <label class="fld"><span>Format referensi</span>
+          <label class="fld"><span>Format tabel</span>
+          <select id="tFormat">
+            <option value="a">Awal: Link · Tahun · Referensi · Ringkasan</option>
+            <option value="b">Analisis: Author · Method · Finding · Gap</option>
+          </select></label>
+        <label class="fld"><span>Format referensi</span>
             <select id="style">
               <option value="apa">APA 7</option>
               <option value="ieee">IEEE</option>
@@ -193,7 +198,7 @@
 </div>
 
 <div id="modalRoot"></div>
-<script src="core.js?v=20261103b"></script>
-<script src="ui.js?v=20261103b"></script>
+<script src="core.js?v=20261103c"></script>
+<script src="ui.js?v=20261103c"></script>
 </body>
 </html>
