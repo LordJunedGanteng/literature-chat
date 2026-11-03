@@ -176,75 +176,248 @@ function authorsHarvard(a) {
 
 function doiLink(r) { return r.doi ? 'https://doi.org/' + r.doi : (r.url || ''); }
 
-function citation(r, style) {
-  if (r.rawRef && !r.title) return r.rawRef; // entri dari file lama
-  const y = r.year || 'n.d.';
-  const t = r.title || '(tanpa judul)';
-  const c = r.container || r.publisher || '';
-  const v = r.volume, i = r.issue, p = r.pages;
-  const link = doiLink(r);
+function authorsMDPI(a) {   // Tian, J.; Lee, K.-H.
+  return a.map(x => x.family + (x.given ? ', ' + initials(x.given).replace(/ /g, '') : '')).join('; ');
+}
+function authorsAMA(a) {    // Tian J, Lee KH; >6 penulis: 3 pertama + et al
+  const names = a.map(x => x.family + (x.given ? ' ' + initials(x.given).replace(/[. ]/g, '') : ''));
+  return names.length > 6 ? names.slice(0, 3).join(', ') + ', et al' : names.join(', ');
+}
+function authorsChicago(a) { // Tian, Jing, Ann Lee, and Bob Kim.
+  const full = (x) => (x.given ? x.given + ' ' : '') + x.family;
+  const first = a[0].family + (a[0].given ? ', ' + a[0].given : '');
+  let s;
+  if (a.length === 1) s = first;
+  else if (a.length > 10) s = [first].concat(a.slice(1, 7).map(full)).join(', ') + ', et al';
+  else s = [first].concat(a.slice(1, -1).map(full)).join(', ') + ', and ' + full(a[a.length - 1]);
+  return /\.$/.test(s) ? s : s + '.';
+}
+
+function doiLink(r) { return r.doi ? 'https://doi.org/' + r.doi : (r.url || ''); }
+
+const NUMBERED_STYLES = ['ieee', 'vancouver', 'ama', 'mdpi']; // daftar pustaka bernomor [1], [2]
+const CITE_STYLES = [
+  ['mdpi', 'MDPI and ACS Style'], ['ama', 'AMA Style'], ['chicago', 'Chicago/Turabian Style'], ['apa', 'APA Style'],
+  ['ieee', 'IEEE Style'], ['harvard', 'Harvard Style'], ['mla', 'MLA Style'], ['vancouver', 'Vancouver Style']
+];
+
+const endP = (s) => (/[.?!]$/.test(s) ? s : s + '.');
+const htmlToText = (h) => String(h).replace(/<[^>]+>/g, '')
+  .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+
+// Sitasi dalam HTML (nama jurnal/volume miring sesuai gaya). Versi teks polos = citation().
+function citeHTML(r, style) {
+  if (r.rawRef && !r.title) return esc(r.rawRef); // entri dari file lama: apa adanya
+  const A = r.authors || [];
+  const y = esc(r.year || 'n.d.');
+  const t = esc(r.title || '(tanpa judul)');
+  const c = esc(r.container || r.publisher || '');
+  const ci = c ? '<i>' + c + '</i>' : '';
+  const v = esc(r.volume || ''), iss = esc(r.issue || '');
+  const p = esc(String(r.pages || '').replace(/-/g, '–'));
+  const link = esc(doiLink(r));
+  const tq = t.replace(/&quot;/g, '&#39;');                   // judul yang dibungkus "..."
+  const pp = p ? (p.includes('–') ? 'pp. ' : 'p. ') + p : ''; // pp. 1–10 / p. 34
   switch (style) {
+    case 'mdpi': {
+      let s = (A.length ? esc(authorsMDPI(A)) + ' ' : '') + endP(t);
+      if (ci) s += ' ' + ci;
+      s += ' <b>' + y + '</b>';
+      if (v) s += ', <i>' + v + '</i>';
+      if (p) s += ', ' + p;
+      return s + '.' + (link ? ' ' + link : '');
+    }
+    case 'ama': {
+      let s = (A.length ? esc(authorsAMA(A)) + '. ' : '') + endP(t);
+      if (ci) s += ' ' + ci + '.';
+      s += ' ' + y;
+      if (v) s += ';' + v + (iss ? '(' + iss + ')' : '');
+      if (p) s += ':' + p;
+      return s + '.' + (link ? ' ' + link : '');
+    }
+    case 'chicago': {
+      let s = (A.length ? esc(authorsChicago(A)) + ' ' : '') + y + '. "' + endP(tq) + '"';
+      const tail = [ci, v ? v + (iss ? ', no. ' + iss : '') : ''].filter(Boolean).join(' ');
+      if (tail || p) s += ' ' + tail + (p ? (tail ? ': ' : '') + p : '') + '.';
+      return s + (link ? ' ' + link : '');
+    }
     case 'ieee': {
-      let s = '';
-      if (r.authors.length) s += authorsIEEE(r.authors) + ', ';
-      s += '"' + t + ',"';
-      if (c) s += ' ' + c + ',';
+      let s = (A.length ? esc(authorsIEEE(A)) + ', ' : '') + '"' + tq + ',"';
+      if (ci) s += ' ' + ci + ',';
       if (v) s += ' vol. ' + v + ',';
-      if (i) s += ' no. ' + i + ',';
-      if (p) s += ' pp. ' + p + ',';
-      s += ' ' + y + '.';
-      if (link) s += ' [Online]. Tersedia: ' + link;
-      return s;
+      if (iss) s += ' no. ' + iss + ',';
+      if (pp) s += ' ' + pp + ',';
+      return s + ' ' + y + '.' + (link ? ' doi: ' + (r.doi ? esc(r.doi) : link) + '.' : '');
     }
     case 'mla': {
-      let s = '';
-      if (r.authors.length) s += authorsMLA(r.authors) + '. ';
-      s += '"' + t + '." ';
-      if (c) s += c + ', ';
+      let s = (A.length ? esc(authorsMLA(A)) + '. ' : '') + '"' + endP(tq) + '" ';
+      if (ci) s += ci + ', ';
       if (v) s += 'vol. ' + v + ', ';
-      if (i) s += 'no. ' + i + ', ';
-      s += y;
-      if (p) s += ', pp. ' + p;
-      s += '.';
-      if (link) s += ' ' + link + '.';
-      return s;
+      if (iss) s += 'no. ' + iss + ', ';
+      s += y + (pp ? ', ' + pp : '') + '.';
+      return s + (link ? ' ' + link + '.' : '');
     }
     case 'harvard': {
-      let s = '';
-      if (r.authors.length) s += authorsHarvard(r.authors) + ' ';
-      s += '(' + y + ') ';
-      s += "'" + t + "'";
-      if (c) s += ', ' + c;
-      if (v) s += ', ' + v + (i ? '(' + i + ')' : '');
-      if (p) s += ', pp. ' + p;
-      s += '.';
-      if (link) s += ' Tersedia di: ' + link;
-      return s;
+      let s = (A.length ? esc(authorsHarvard(A)) + ' ' : '') + '(' + y + ') \'' + t + '\'';
+      if (ci) s += ', ' + ci;
+      if (v) s += ', ' + v + (iss ? '(' + iss + ')' : '');
+      if (pp) s += ', ' + pp;
+      return s + '.' + (link ? ' Tersedia di: ' + link : '');
     }
     case 'vancouver': {
-      let s = '';
-      if (r.authors.length) s += authorsVancouver(r.authors) + '. ';
-      s += t + '. ';
+      let s = (A.length ? esc(authorsVancouver(A)) + '. ' : '') + endP(t) + ' ';
       if (c) s += c + '. ';
       s += y;
-      if (v) s += ';' + v + (i ? '(' + i + ')' : '');
+      if (v) s += ';' + v + (iss ? '(' + iss + ')' : '');
       if (p) s += ':' + p;
-      s += '.';
-      if (link) s += ' doi: ' + (r.doi || link);
-      return s;
+      return s + '.' + (r.doi ? ' doi:' + esc(r.doi) : link ? ' Tersedia di: ' + link : '');
     }
     default: { // APA 7
-      let s = '';
-      if (r.authors.length) s += authorsAPA(r.authors) + ' ';
-      s += '(' + y + '). ' + t + '.';
-      if (c) s += ' ' + c;
-      if (v) { s += ', ' + v; if (i) s += '(' + i + ')'; }
-      if (p) s += ', ' + p;
-      s += '.';
-      if (link) s += ' ' + link;
-      return s;
+      let s = (A.length ? esc(authorsAPA(A)) + ' ' : '') + '(' + y + '). ' + endP(t);
+      if (ci) {
+        s += ' ' + ci;
+        if (v) s += ', <i>' + v + '</i>' + (iss ? '(' + iss + ')' : '');
+        if (p) s += ', ' + p;
+        s += '.';
+      }
+      return s + (link ? ' ' + link : '');
     }
   }
+}
+
+function citation(r, style) { return htmlToText(citeHTML(r, style)); }
+
+/* ---------- file kutipan buat Mendeley / Zotero / EndNote ---------- */
+
+function citeKey(r) {
+  const fam = ((r.authors && r.authors[0] && r.authors[0].family) || 'anon').normalize('NFD').replace(/[^A-Za-z]/g, '').toLowerCase() || 'anon';
+  const word = String(r.title || '').normalize('NFD').toLowerCase().split(/[^a-z0-9]+/).find(w => w.length > 3 && !REL_STOP_CITE.has(w)) || '';
+  return fam + (r.year || '') + word;
+}
+const REL_STOP_CITE = new Set('the and for with from into about between their this that toward towards'.split(' '));
+
+function refType(r) {
+  const t = String(r.type || '').toLowerCase();
+  if (/chapter/.test(t)) return 'chapter';
+  if (/book/.test(t) || t === 'monograph') return 'book';
+  if (/proceedings|conference/.test(t)) return 'conf';
+  if (/dissertation|thesis/.test(t)) return 'thesis';
+  if (/preprint|posted-content/.test(t)) return 'preprint';
+  if (/article|journal/.test(t) || r.container) return 'article';
+  return 'misc';
+}
+
+function toBibTeX(r) {
+  const T = { article: 'article', chapter: 'incollection', book: 'book', conf: 'inproceedings', thesis: 'phdthesis', preprint: 'misc', misc: 'misc' }[refType(r)];
+  const bx = (s) => String(s || '').replace(/([&%$#_])/g, '\\$1');
+  const f = [];
+  if (r.authors && r.authors.length) f.push(['author', r.authors.map(a => a.family + (a.given ? ', ' + a.given : '')).join(' and ')]);
+  f.push(['title', '{' + (r.title || r.rawRef || '') + '}']);
+  const box = T === 'article' ? 'journal' : T === 'incollection' || T === 'inproceedings' ? 'booktitle' : T === 'misc' ? 'howpublished' : '';
+  if (box && r.container) f.push([box, r.container]);
+  if (r.publisher && T !== 'article') f.push(['publisher', r.publisher]);
+  if (r.year) f.push(['year', r.year]);
+  if (r.volume) f.push(['volume', r.volume]);
+  if (r.issue) f.push(['number', r.issue]);
+  if (r.pages) f.push(['pages', String(r.pages).replace(/-+/g, '--')]);
+  if (r.doi) f.push(['doi', r.doi]);
+  if (r.url) f.push(['url', r.url]);
+  return '@' + T + '{' + citeKey(r) + ',\n' + f.map(([k, v]) => '  ' + k + ' = {' + bx(v) + '}').join(',\n') + '\n}\n';
+}
+
+function toRIS(r) {
+  const T = { article: 'JOUR', chapter: 'CHAP', book: 'BOOK', conf: 'CPAPER', thesis: 'THES', preprint: 'UNPB', misc: 'GEN' }[refType(r)];
+  const L = [['TY', T]];
+  for (const a of r.authors || []) L.push(['AU', a.family + (a.given ? ', ' + a.given : '')]);
+  L.push(['TI', r.title || r.rawRef || '']);
+  if (r.container) L.push([T === 'JOUR' ? 'JO' : 'T2', r.container]);
+  if (r.year) L.push(['PY', r.year]);
+  if (r.volume) L.push(['VL', r.volume]);
+  if (r.issue) L.push(['IS', r.issue]);
+  const [sp, ep] = String(r.pages || '').split(/[-–]+/);
+  if (sp) L.push(['SP', sp]);
+  if (ep) L.push(['EP', ep]);
+  if (r.publisher) L.push(['PB', r.publisher]);
+  if (r.doi) L.push(['DO', r.doi]);
+  if (r.url) L.push(['UR', r.url]);
+  if (r.abstract) L.push(['AB', r.abstract]);
+  L.push(['ER', '']);
+  return L.map(([k, v]) => k + '  - ' + String(v).replace(/\s*\n\s*/g, ' ')).join('\r\n') + '\r\n';
+}
+
+function toEndNote(r) {
+  const T = { article: 'Journal Article', chapter: 'Book Section', book: 'Book', conf: 'Conference Paper', thesis: 'Thesis', preprint: 'Unpublished Work', misc: 'Generic' }[refType(r)];
+  const L = [['%0', T]];
+  for (const a of r.authors || []) L.push(['%A', a.family + (a.given ? ', ' + a.given : '')]);
+  L.push(['%T', r.title || r.rawRef || '']);
+  if (r.container) L.push([T === 'Journal Article' ? '%J' : '%B', r.container]);
+  if (r.year) L.push(['%D', r.year]);
+  if (r.volume) L.push(['%V', r.volume]);
+  if (r.issue) L.push(['%N', r.issue]);
+  if (r.pages) L.push(['%P', r.pages]);
+  if (r.publisher) L.push(['%I', r.publisher]);
+  if (r.doi) L.push(['%R', r.doi]);
+  if (r.url) L.push(['%U', r.url]);
+  if (r.abstract) L.push(['%X', r.abstract]);
+  return L.map(([k, v]) => k + ' ' + String(v).replace(/\s*\n\s*/g, ' ')).join('\r\n') + '\r\n';
+}
+
+/* ---------- jendela Cite ---------- */
+
+async function copyRich(html, label) {
+  const text = htmlToText(html);
+  try {
+    await navigator.clipboard.write([new ClipboardItem({
+      'text/html': new Blob([html], { type: 'text/html' }),
+      'text/plain': new Blob([text], { type: 'text/plain' })
+    })]);
+    toast(label);
+  } catch (e) { copyText(text, label); } // browser lama: teks polos aja
+}
+
+function openCite(r) {
+  const root = $('#modalRoot');
+  const svgCopy = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  const svgCheck = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+  const block = ([k, label]) => '<div class="cite-item"><div class="cite-h">' + label
+    + '<button class="cite-copy" data-style="' + k + '" title="Copy ' + label + '" aria-label="Copy ' + label + '">' + svgCopy + '</button></div>'
+    + '<div class="cite-txt">' + citeHTML(r, k) + '</div></div>';
+  root.innerHTML = '<div class="backdrop"><div class="modal cite-modal" role="dialog" aria-label="Cite">'
+    + '<div class="cite-top"><h2>Cite</h2><button class="cite-x" id="citeX" aria-label="Tutup">'
+    + '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>'
+    + (r.rawRef && !r.title ? '<p class="muted" style="font-size:13px;margin:-6px 0 12px">Entri ini dari file lama — referensinya ditampilkan apa adanya.</p>' : '')
+    + CITE_STYLES.slice(0, 4).map(block).join('')
+    + '<details class="cite-more"><summary>Gaya lain (IEEE, Harvard, MLA, Vancouver)</summary>'
+    + CITE_STYLES.slice(4).map(block).join('') + '</details>'
+    + '<div class="cite-foot">'
+      + '<button class="btn" data-dl="bib">BibTeX</button>'
+      + '<button class="btn" data-dl="enw">EndNote</button>'
+      + '<button class="btn" data-dl="ris">RIS</button>'
+    + '</div></div></div>';
+  const close = () => { root.innerHTML = ''; document.removeEventListener('keydown', onKey); };
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey);
+  $('#citeX').onclick = close;
+  const bd = root.querySelector('.backdrop');
+  bd.onclick = (e) => {
+    if (e.target === bd) return close();
+    const cp = e.target.closest('.cite-copy');
+    if (cp) {
+      const label = CITE_STYLES.find(s => s[0] === cp.dataset.style)[1];
+      copyRich(citeHTML(r, cp.dataset.style), label + ' tercopy');
+      cp.innerHTML = svgCheck; cp.classList.add('ok');
+      setTimeout(() => { cp.innerHTML = svgCopy; cp.classList.remove('ok'); }, 1400);
+      return;
+    }
+    const dl = e.target.closest('[data-dl]');
+    if (dl) {
+      const k = dl.dataset.dl;
+      const body = k === 'bib' ? toBibTeX(r) : k === 'ris' ? toRIS(r) : toEndNote(r);
+      const mime = k === 'bib' ? 'application/x-bibtex' : k === 'ris' ? 'application/x-research-info-systems' : 'application/x-endnote-refer';
+      download(citeKey(r) + '.' + k, mime + ';charset=utf-8', body);
+    }
+  };
+  $('#citeX').focus();
 }
 
 function inText(r) {
@@ -561,12 +734,12 @@ function renderTable() {
   $('#tStats').innerHTML = stats.map(([k, v]) => '<div class="stat"><div class="v">' + v + '</div><div class="k">' + k + '</div></div>').join('');
 
   const style = $('#style').value;
-  const numbered = (style === 'ieee' || style === 'vancouver');
+  const numbered = NUMBERED_STYLES.includes(style);
   const biblio = sortedTable().slice();
   if (!numbered) biblio.sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
   $('#biblio').className = 'biblio' + (numbered ? ' numbered' : '');
   $('#biblio').innerHTML = biblio.length
-    ? '<ol>' + biblio.map(r => '<li>' + esc(citation(r, style)) + '</li>').join('') + '</ol>'
+    ? '<ol>' + biblio.map(r => '<li>' + citeHTML(r, style) + '</li>').join('') + '</ol>'
     : '<p class="muted">Belum ada entri.</p>';
 }
 

@@ -335,7 +335,7 @@ function cardHTML(r, mi, i, num, mode) {
     + '<div class="cbtns">'
       + '<button class="pbtn ' + (inT ? 'done' : 'tonal') + '" data-add="' + mi + ':' + i + '"' + (inT ? ' disabled' : '') + '>'
         + ico(inT ? 'check' : 'plus') + (inT ? 'Di tabel' : 'Tabel') + '</button>'
-      + '<button class="pbtn" data-cite="' + mi + ':' + i + '" title="Copy referensi lengkap">' + ico('quote') + 'Sitasi</button>'
+      + '<button class="pbtn" data-cite="' + mi + ':' + i + '" title="Lihat & copy sitasi (APA, MDPI, AMA, Chicago…) atau download BibTeX/RIS">' + ico('quote') + 'Sitasi</button>'
       + '<button class="pbtn" data-intext="' + mi + ':' + i + '" title="Copy sitasi dalam teks">' + esc(inText(r)) + '</button>'
       + (r.url ? '<a class="pbtn" href="' + esc(r.url) + '" target="_blank" rel="noopener">' + ico('external') + 'Buka</a>' : '')
     + '</div></div>';
@@ -806,7 +806,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (r && addToTable(r)) { saveTable(); b.outerHTML = '<button class="pbtn done" disabled>' + ico('check') + 'Di tabel</button>'; toast('Masuk tabel (' + table.length + ')'); }
       return;
     }
-    if ((b = el('[data-cite]'))) { const r = pick(b.dataset.cite); if (r) copyText(citation(r, $('#style').value), 'Referensi tercopy'); return; }
+    if ((b = el('[data-cite]'))) { const r = pick(b.dataset.cite); if (r) openCite(r); return; }
     if ((b = el('[data-intext]'))) { const r = pick(b.dataset.intext); if (r) copyText(inText(r), 'Sitasi dalam teks tercopy'); return; }
     if ((b = el('[data-all]'))) { loadAll(+b.dataset.all); return; }
     if ((b = el('[data-more]'))) { loadMore(+b.dataset.more); return; }
@@ -846,10 +846,11 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#tsvBtn').onclick = needRows(() => copyText(toTSV(exportMatrix()), 'Tercopy — tinggal paste di Excel'));
   $('#docBtn').onclick = needRows(() => download('literature-review.doc', 'application/msword', toDoc(exportMatrix(), curFormat())));
   $('#copyBiblioBtn').onclick = needRows(() => {
-    const st = $('#style').value, numbered = st === 'ieee' || st === 'vancouver';
+    const st = $('#style').value, numbered = NUMBERED_STYLES.includes(st);
     const rows = sortedTable();
     if (!numbered) rows.sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
-    copyText(rows.map((r, i) => (numbered ? '[' + (i + 1) + '] ' : '') + citation(r, st)).join('\n\n'), 'Daftar pustaka tercopy');
+    // copy berformat (miring tetap kebawa pas di-paste ke Word/Docs)
+    copyRich(rows.map((r, i) => '<p>' + (numbered ? '[' + (i + 1) + '] ' : '') + citeHTML(r, st) + '</p>').join(''), 'Daftar pustaka tercopy');
   });
   $('#clearBtn').onclick = () => {
     if (table.length && confirm('Hapus semua ' + table.length + ' entri dari tabel?')) { table = []; saveTable(); renderTable(); }
