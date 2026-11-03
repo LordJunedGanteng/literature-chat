@@ -27,6 +27,7 @@ const ICONS = {
 };
 const ico = (n) => '<svg class="i" viewBox="0 0 24 24" aria-hidden="true">' + (ICONS[n] || '') + '</svg>';
 const STAR = '<svg class="star" viewBox="0 0 24 24" aria-hidden="true"><path fill="url(#sg)" d="M12 2C12 7.523 16.477 12 22 12C16.477 12 12 16.477 12 22C12 16.477 7.523 12 2 12C7.523 12 12 7.523 12 2Z"/></svg>';
+const STAR_SM = STAR.replace('class="star"', 'class="star sm"');
 function paintIcons(root) {
   (root || document).querySelectorAll('i[data-i]').forEach(el => { el.outerHTML = ico(el.dataset.i); });
 }
@@ -97,6 +98,9 @@ const ID_EN = [
 const ID_GLUE = /\b(dan|serta|terhadap|pada|dalam|dengan|di|ke|oleh|bagi|antara)\b/gi;
 const FILLER = /\b(tolong|dong|deh|ya|yg|yang|carikan|cariin|cari|carilah|aku|saya|gua|gue|gw|mau|ingin|pengen|butuh|minta|jurnal|jurnal2|artikel|paper|literatur|referensi|tentang|mengenai|soal|terkait|untuk|buat|bidang|sih|nih)\b/gi;
 
+// kata tanya & istilah "meta" yang bikin pencarian jurnal ga nyambung
+const QUESTION_FILLER = /\b(apa|apakah|bagaimana|gimana|kenapa|mengapa|jelaskan|jelasin|bandingkan|bandingin|sebutkan|sebutin|siapa|kapan|berapa|saja|aja|research gaps?|gap|celah penelitian|temuan|hasil penelitian|metode|penelitian|riset|studi|kajian|literature review|what|how|why|which|who|explain|compare|are|is|the|findings?|studies|research)\b/gi;
+
 function parseMessage(text) {
   const o = currentDefaults();
   const year = new Date().getFullYear();
@@ -114,6 +118,7 @@ function parseMessage(text) {
   if ((m = q.match(/\b(terbaru|terkini|paling baru|newest|latest|most recent)\b/i))) { o.sort = 'newest'; cut(m[0]); }
   if ((m = q.match(/\b(?:pakai|pake|via|lewat|dari|from)\s+(crossref|openalex)\b/i))) { o.src = m[1].toLowerCase(); cut(m[0]); }
 
+  if (isQuestion(text)) q = q.replace(QUESTION_FILLER, ' ');
   q = q.replace(FILLER, ' ').replace(/[,;:.]+/g, ' ').replace(/\s+/g, ' ').trim();
 
   // terjemahin istilah Indonesia yang umum biar hasilnya lebih banyak
@@ -194,20 +199,61 @@ async function send(text) {
     botText('Halo! Mau cari literatur tentang apa?', SUGGEST.slice(0, 4)); return;
   }
 
-  const { q, opts, translated } = parseMessage(text);
-  if (!q) { botText('Topiknya apa nih? Contoh: <b>creative labour precarity 2015-2025</b>.', SUGGEST.slice(0, 3)); return; }
+  let { q, opts, translated } = parseMessage(text);
+  const question = isQuestion(text);
+  let kwAI = false;
 
   busy = true; typing = true; renderChat(); setBusy(true);
+  // pertanyaan panjang -> minta AI ubah jadi kata kunci pencarian yang pas
+  if (question && aiReady()) {
+    try {
+      const k = await aiExtractQuery(text);
+      q = k.query; translated = null; kwAI = true;
+      if (k.y1) opts.y1 = k.y1;
+      if (k.y2) opts.y2 = k.y2;
+    } catch (e) { /* lanjut pakai kata kunci hasil parsing biasa */ }
+  }
+  if (!q) {
+    busy = false; typing = false; setBusy(false);
+    botText('Topiknya apa nih? Contoh: <b>creative labour precarity 2015-2025</b>.', SUGGEST.slice(0, 3)); return;
+  }
+
+  let mi = -1;
   try {
     const { total, items, src, fellBack } = await fetchPage(q, opts, 1);
-    for (const r of items) { r.query = q; if (!r.summary) r.summary = autoSummary(r); }
-    cur.msgs.push({ role: 'bot', kind: 'results', q, opts, translated, total, results: items, page: 1, src, fellBack, t: Date.now() });
+    for (const r of items) { r.query = q; checkRelevance(r, q); if (!r.summary) r.summary = autoSummary(r); }
+    cur.msgs.push({ role: 'bot', kind: 'results', q, opts, translated, kwAI, question, ask: text, total, results: items, page: 1, src, fellBack, t: Date.now() });
+    mi = cur.msgs.length - 1;
   } catch (e) {
     cur.msgs.push({ role: 'bot', kind: 'error', text: e.message, retry: text, t: Date.now() });
   } finally {
     busy = false; typing = false; setBusy(false);
     commit(); renderChat();
   }
+  if (mi >= 0 && visibleResults(cur.msgs[mi]).length && aiReady() && aiConfig().auto) runAI(cur, mi);
+}
+
+// Jawaban / gambaran AI untuk satu pesan hasil, di-stream ke bloknya sendiri.
+async function runAI(chat, mi) {
+  const m = chat.msgs[mi];
+  if (!m || !m.results || !visibleResults(m).length) return;
+  m.ai = { status: 'loading', text: '', model: aiConfig().model };
+  if (chat === cur) renderChat(mi);
+  const el = () => (chat === cur ? document.querySelector('.aians[data-ai="' + mi + '"]') : null);
+  try {
+    const text = await aiAnswer({
+      text: m.ask || m.q, q: m.q, question: !!m.question, recs: visibleResults(m).slice(0, 8),
+      onToken: (full) => {
+        m.ai.text = full; m.ai.status = 'streaming';
+        const e = el(); if (e) e.innerHTML = mdLite(full, mi) + '<span class="caret"></span>';
+      }
+    });
+    m.ai.text = text; m.ai.status = 'done';
+  } catch (e) {
+    m.ai = { status: 'error', error: e.message };
+  }
+  saveChats();
+  if (chat === cur) renderChat(mi);
 }
 
 function botText(html, suggestions) {
@@ -224,7 +270,7 @@ async function loadMore(mi) {
   try {
     const { items } = await fetchPage(m.q, { ...m.opts, src: m.src }, m.page + 1);
     const seen = new Set(m.results.map(keyOf));
-    for (const r of items) if (!seen.has(keyOf(r))) { r.query = m.q; r.summary = autoSummary(r); m.results.push(r); }
+    for (const r of items) if (!seen.has(keyOf(r))) { r.query = m.q; checkRelevance(r, m.q); r.summary = autoSummary(r); m.results.push(r); }
     m.page += 1;
   } catch (e) {
     toast('Gagal memuat: ' + e.message);
@@ -247,7 +293,7 @@ async function loadAll(mi) {
     for (let pg = 1; (pg - 1) * size < want; pg++) {
       if (label) label.textContent = 'Memuat ' + Math.min(pg * size, want) + ' / ' + want + '…';
       const { items } = await fetchPage(m.q, { ...m.opts, src: m.src, size }, pg);
-      for (const r of items) if (!seen.has(keyOf(r))) { seen.add(keyOf(r)); r.query = m.q; r.summary = autoSummary(r); m.results.push(r); }
+      for (const r of items) if (!seen.has(keyOf(r))) { seen.add(keyOf(r)); r.query = m.q; checkRelevance(r, m.q); r.summary = autoSummary(r); m.results.push(r); }
       if (items.length < size) break;
     }
     m.results = m.results.slice(0, want);
@@ -263,15 +309,22 @@ function setBusy(on) { $('#sendBtn').disabled = on || !$('#input').value.trim();
 
 /* ======================= render chat ======================= */
 
-function cardHTML(r, mi, i) {
+const visibleResults = (m) => (m.results || []).filter(r => !r.offTopic);
+const missLabel = (r) => (r.missing || []).map(t => t.length <= 3 ? t.toUpperCase() : t).join(', ');
+
+// mode: '' = normal (bernomor), 'prune' = meleset & lagi dianimasikan keluar, 'dim' = meleset tapi ditampilkan lagi
+function cardHTML(r, mi, i, num, mode) {
   const inT = new Set(table.map(keyOf)).has(keyOf(r));
   const who = r.authors.length
     ? esc(r.authors.slice(0, 3).map(a => (a.given ? a.given + ' ' : '') + a.family).join(', ')) + (r.authors.length > 3 ? ' dkk.' : '')
     : 'penulis tidak tercatat';
   const where = [r.container && '<em>' + esc(r.container) + '</em>', esc(r.year)].filter(Boolean).join(' · ');
   const title = esc(r.title || '(tanpa judul)');
-  return '<div class="card">'
-    + '<h4><span class="num">' + (i + 1) + '.</span>' + (r.url ? '<a href="' + esc(r.url) + '" target="_blank" rel="noopener">' + title + '</a>' : title) + '</h4>'
+  const miss = esc(missLabel(r));
+  return '<div class="card' + (mode ? ' ' + mode : '') + '"' + (num ? ' id="c-' + mi + '-' + num + '"' : '')
+    + ' data-ri="' + mi + ':' + i + '"' + (mode ? ' data-miss="✕ ga nyebut ' + miss + '"' : '') + '>'
+    + '<h4><span class="num">' + (num ? num + '.' : '–') + '</span>' + (r.url ? '<a href="' + esc(r.url) + '" target="_blank" rel="noopener">' + title + '</a>' : title) + '</h4>'
+    + (mode === 'dim' ? '<div class="row"><span class="tag w">kurang relevan — ga nyebut ' + miss + '</span></div>' : '')
     + '<div class="meta">' + who + (where ? ' — ' + where : '') + '</div>'
     + '<div class="row">'
       + (r.oa ? '<span class="tag g">open access</span>' : '')
@@ -292,9 +345,35 @@ function suggHTML(list) {
   return '<div class="sugg">' + list.map(s => '<button data-say="' + esc(s) + '">' + esc(s) + '</button>').join('') + '</div>';
 }
 
+function aiBlockHTML(m, mi) {
+  const a = m.ai;
+  if (!a) {
+    if (!aiReady() && m.question) {
+      return '<div class="aihint"><button class="pbtn tonal" data-aisettings>' + STAR_SM + 'Aktifin Asisten AI biar pertanyaan ini dijawab</button></div>';
+    }
+    if (aiReady()) {
+      return '<div class="aihint"><button class="pbtn" data-airun="' + mi + '">' + STAR_SM + (m.question ? 'Jawab pakai AI' : 'Rangkum pakai AI') + '</button></div>';
+    }
+    return '';
+  }
+  if (a.status === 'error') {
+    return '<div class="aians err">AI gagal: ' + esc(a.error) + ' '
+      + '<button class="pbtn" data-airun="' + mi + '">' + ico('refresh') + 'Coba lagi</button>'
+      + (/key|aktif/i.test(a.error) ? ' <button class="pbtn" data-aisettings>Pengaturan AI</button>' : '') + '</div>';
+  }
+  const body = a.text ? mdLite(a.text, mi) + (a.status !== 'done' ? '<span class="caret"></span>' : '')
+    : '<div class="shimmer"><i></i><i></i><i></i></div>';
+  return '<div class="aians" data-ai="' + mi + '">' + body + '</div>'
+    + (a.status === 'done' ? '<div class="aimeta">' + STAR_SM + 'Dijawab AI (' + esc(a.model || 'Groq') + ') dari ' + Math.min(8, visibleResults(m).length)
+      + ' jurnal teratas di bawah — cek ke sumber aslinya. <button class="linkbtn" data-airun="' + mi + '">Ulangi</button>'
+      + ' · <button class="linkbtn" data-copyai="' + mi + '">Copy</button></div>' : '')
+    + '<div class="aidiv"></div>';
+}
+
 function botResultsHTML(m, mi) {
   const tags = filterTags(m.opts, m.src).map(t => '<span class="tag">' + esc(t) + '</span>');
   if (m.translated) tags.unshift('<span class="tag g" title="Diterjemahin dari: ' + esc(m.translated) + '">diterjemahin ke Inggris</span>');
+  if (m.kwAI) tags.unshift('<span class="tag g" title="Kata kunci pencarian dibuat AI dari pertanyaan lo">kata kunci dari AI</span>');
   if (m.fellBack) tags.push('<span class="tag w">OpenAlex limit → Crossref</span>');
 
   if (!m.results.length) {
@@ -304,26 +383,57 @@ function botResultsHTML(m, mi) {
   const n = m.results.length;
   const totalTxt = m.total.toLocaleString('id-ID');
   const canMore = n < m.total && n < MAX_ALL;
+
+  // kartu: yang relevan bernomor; yang meleset dianimasikan keluar sekali, lalu disembunyiin
+  let num = 0;
+  const hidIdx = [];
+  const cards = m.results.map((r, i) => {
+    if (!r.offTopic) return cardHTML(r, mi, i, ++num, '');
+    hidIdx.push(i);
+    return r.pruned ? '' : cardHTML(r, mi, i, 0, 'prune');
+  }).join('');
+  const nVis = num;
+  const hiddenCards = m.showHidden ? hidIdx.filter(i => m.results[i].pruned).map(i => cardHTML(m.results[i], mi, i, 0, 'dim')).join('') : '';
+  let prunebar = '';
+  if (hidIdx.length) {
+    const count = {};
+    for (const i of hidIdx) for (const t of (m.results[i].missing || [])) count[t] = (count[t] || 0) + 1;
+    const top = Object.keys(count).sort((a, b) => count[b] - count[a]).slice(0, 2).map(t => '“' + esc(t.length <= 3 ? t.toUpperCase() : t) + '”');
+    prunebar = '<div class="prunebar">' + ico('sliders') + '<span><b>' + hidIdx.length + '</b> jurnal meleset disembunyiin — ga nyebut '
+      + top.join(' / ') + ' di judul/abstrak.</span>'
+      + '<button class="linkbtn" data-showhidden="' + mi + '">' + (m.showHidden ? 'Sembunyiin lagi' : 'Tampilkan') + '</button></div>';
+    // Crossref nyarinya longgar: kalau lebih dari separuh meleset, tawarin OpenAlex
+    if (m.src === 'crossref' && hidIdx.length > n / 2) {
+      prunebar += '<div class="sugg"><button data-say="' + esc(m.q + ' pakai openalex') + '">Cari “' + esc(m.q) + '” pakai OpenAlex (lebih presisi)</button></div>';
+    }
+  }
+
   let more = '';
   if (canMore) {
     const all = Math.min(m.total, MAX_ALL);
     more = '<div class="morebar">'
-      + '<span class="muted">Ditampilkan ' + n + ' dari ' + totalTxt + '</span>'
+      + '<span class="muted">Dimuat ' + n + ' dari ' + totalTxt + ' · ' + nVis + ' relevan</span>'
       + '<button class="pbtn more" data-more="' + mi + '">' + ico('plus') + 'Muat 25 lagi</button>'
       + '<button class="pbtn tonal more" data-all="' + mi + '">' + ico('download') + (all < m.total ? 'Muat ' + all + ' teratas' : 'Muat semua (' + all + ')') + '</button>'
       + '</div>';
   } else if (n < m.total) {
-    more = '<div class="morebar"><span class="muted">Ditampilkan ' + n + ' dari ' + totalTxt
+    more = '<div class="morebar"><span class="muted">Dimuat ' + n + ' dari ' + totalTxt
       + '. Batas tampilan ' + MAX_ALL + ' — persempit kata kunci atau filter tahun buat sisanya.</span></div>';
   }
 
-  return 'Nemu <b>' + totalTxt + '</b> jurnal buat <b>“' + esc(m.q) + '”</b>. '
-    + (n < m.total ? 'Ditampilkan <b>' + n + '</b> teratas (urut ' + (m.opts.sort === 'cited' ? 'sitasi' : m.opts.sort === 'newest' ? 'terbaru' : 'relevansi') + '):' : 'Semua ' + n + ' ditampilkan:')
+  const urut = m.opts.sort === 'cited' ? 'sitasi' : m.opts.sort === 'newest' ? 'terbaru' : 'relevansi';
+  const intro = nVis
+    ? (n < m.total ? 'Dari ' + n + ' teratas (urut ' + urut + '), ' : 'Dari ' + n + ' hasil, ') + '<b>' + nVis + '</b> yang nyambung:'
+    : 'Semua hasil yang dimuat ternyata kurang nyambung sama kata kunci lo. Coba muat lebih banyak, atau ganti kata kuncinya.';
+  return aiBlockHTML(m, mi)
+    + 'Nemu <b>' + totalTxt + '</b> jurnal buat <b>“' + esc(m.q) + '”</b>. ' + intro
     + '<div class="ftags">' + tags.join('') + '</div>'
-    + '<div class="cards">' + m.results.map((r, i) => cardHTML(r, mi, i)).join('') + '</div>'
+    + '<div class="cards">' + cards + '</div>'
+    + prunebar
+    + (hiddenCards ? '<div class="cards">' + hiddenCards + '</div>' : '')
     + more
     + '<div class="acts">'
-      + '<button class="ib" data-addall="' + mi + '" title="Tambah semua hasil ke tabel">' + ico('listplus') + '</button>'
+      + '<button class="ib" data-addall="' + mi + '" title="Tambah semua hasil yang relevan ke tabel">' + ico('listplus') + '</button>'
       + '<button class="ib" data-copyall="' + mi + '" title="Copy semua sitasi">' + ico('copy') + '</button>'
       + '<button class="ib" data-xlsx="' + mi + '" title="Download hasil ini sebagai .xlsx">' + ico('download') + '</button>'
       + '<button class="ib" data-view="tabel" title="Buka tabel">' + ico('table') + '</button>'
@@ -352,6 +462,27 @@ function renderChat(focusMsg) {
   if (typing) html += '<div class="m bot thinking">' + STAR + '<div class="shimmer"><i></i><i></i><i></i></div></div>';
   $('#msgs').innerHTML = html;
   if (focusMsg == null || atBottom) sc.scrollTop = sc.scrollHeight;
+  armPrune();
+}
+
+// kartu meleset: tunggu animasinya selesai, lalu tandai & buang dari DOM
+function armPrune() {
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const chat = cur;
+  document.querySelectorAll('.card.prune').forEach(el => {
+    const [mi, i] = el.dataset.ri.split(':').map(Number);
+    const done = () => {
+      const r = chat && chat.msgs[mi] && chat.msgs[mi].results[i];
+      if (r) r.pruned = true;
+      el.remove();
+      clearTimeout(armPrune.t); armPrune.t = setTimeout(saveChats, 300);
+    };
+    if (reduce) return done();
+    let finished = false;
+    const once = () => { if (!finished) { finished = true; done(); } };
+    el.addEventListener('animationend', (e) => { if (e.animationName === 'prune') once(); });
+    setTimeout(once, 3000); // tab di background kadang ga ngejalanin animasi
+  });
 }
 
 /* ======================= riwayat (sidebar) ======================= */
@@ -485,6 +616,7 @@ async function importXlsx(file) {
       const rec = { id: newId(), title: '', authors: [], year: /^\d{4}$/.test(y) ? y : '', container: '', publisher: '',
         volume: '', issue: '', pages: '', doi: '', url: link, type: '', oa: false, citedBy: 0, abstract: '',
         summary: String(r[cS] || '').trim(), rawRef: ref || link };
+      if (rec.summary) rec.userEdited = { summary: true }; // ringkasan tulisan user jangan ditimpa AI
       if (addToTable(rec)) n++;
     }
     saveTable();
@@ -529,6 +661,8 @@ async function checkMaintenance() {
   if (!$('#maint') || !$('#adminBar')) { document.documentElement.classList.remove('boot'); return; } // HTML lama dari cache
   let s = null;
   try { s = await fetchStatus(); } catch (e) { /* offline / file belum ada: anggap normal */ }
+  window.AI_PROXY = (s && s.aiProxy) || '';
+  refreshAIBadge();
   const on = !!(s && s.maintenance);
   const admin = isAdminBypass();
   if (on) fillMaint($('#maint'), s);
@@ -570,6 +704,31 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#scrim').onclick = closeMobileSide;
   document.querySelectorAll('.side [data-view]').forEach(b => { b.onclick = () => showView(b.dataset.view); });
   $('#newChatBtn').onclick = () => { startChat(); showView('chat'); };
+  $('#aiBtn').onclick = () => { closeMobileSide(); openAISettings(); };
+  refreshAIBadge();
+
+  // tabel: isi ringkasan + kolom analisis pakai AI
+  $('#aiFillBtn').onclick = async () => {
+    if (!table.length) return toast('Tabel masih kosong');
+    if (!aiReady()) { openAISettings(); return; }
+    const todo = table.filter(r => !r.ai);
+    const recs = todo.length ? todo : table;
+    const msg = todo.length
+      ? 'Isi ringkasan & kolom analisis ' + recs.length + ' entri pakai AI? Hasil edit manual lo ga bakal ditimpa.'
+      : 'Semua entri udah pernah diisi AI. Isi ulang ' + recs.length + ' entri? Hasil edit manual lo ga bakal ditimpa.';
+    if (!confirm(msg)) return;
+    const btn = $('#aiFillBtn');
+    const label = btn.innerHTML;
+    btn.disabled = true;
+    try {
+      await aiFillTable(recs, (d, n) => { btn.textContent = 'AI ngisi ' + d + '/' + n + '…'; renderTable(); });
+      toast('Selesai — ' + recs.length + ' entri diisi AI');
+    } catch (e) {
+      toast('AI berhenti: ' + e.message);
+    } finally {
+      btn.disabled = false; btn.innerHTML = label; renderTable();
+    }
+  };
   $('#themeBtn').onclick = () => {
     const next = $('#themeBtn').dataset.next;
     try { localStorage.setItem('litrev.theme2', next); } catch (e) {}
@@ -631,6 +790,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const el = (s) => e.target.closest(s);
     let b;
     if ((b = el('.abs'))) { b.classList.toggle('clamp'); return; }
+    if ((b = el('[data-jump]'))) {
+      e.preventDefault();
+      const [mi, n] = b.dataset.jump.split(':');
+      const card = document.getElementById('c-' + mi + '-' + n);
+      if (card) { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash'); }
+      return;
+    }
+    if ((b = el('[data-airun]'))) { runAI(cur, +b.dataset.airun); return; }
+    if ((b = el('[data-aisettings]'))) { openAISettings(); return; }
+    if ((b = el('[data-copyai]'))) { const m = cur.msgs[+b.dataset.copyai]; if (m && m.ai) copyText(m.ai.text, 'Jawaban AI tercopy'); return; }
     if ((b = el('[data-say]'))) { send(b.dataset.say); return; }
     if ((b = el('[data-add]'))) {
       const r = pick(b.dataset.add);
@@ -643,17 +812,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if ((b = el('[data-more]'))) { loadMore(+b.dataset.more); return; }
     if ((b = el('[data-addall]'))) {
       const m = cur.msgs[+b.dataset.addall]; let n = 0;
-      for (const r of m.results) if (addToTable(r)) n++;
+      for (const r of visibleResults(m)) if (addToTable(r)) n++;
       saveTable(); renderChat(+b.dataset.addall);
       toast(n ? n + ' jurnal masuk tabel' : 'Semua udah ada di tabel');
       return;
     }
     if ((b = el('[data-copyall]'))) {
       const m = cur.msgs[+b.dataset.copyall], st = $('#style').value;
-      copyText(m.results.map(r => citation(r, st)).join('\n\n'), m.results.length + ' referensi tercopy');
+      const vis = visibleResults(m);
+      copyText(vis.map(r => citation(r, st)).join('\n\n'), vis.length + ' referensi tercopy');
       return;
     }
-    if ((b = el('[data-xlsx]'))) { exportXlsx(cur.msgs[+b.dataset.xlsx].results); return; }
+    if ((b = el('[data-xlsx]'))) { exportXlsx(visibleResults(cur.msgs[+b.dataset.xlsx])); return; }
+    if ((b = el('[data-showhidden]'))) { const m = cur.msgs[+b.dataset.showhidden]; m.showHidden = !m.showHidden; saveChats(); renderChat(+b.dataset.showhidden); return; }
     if ((b = el('[data-view]'))) { showView(b.dataset.view); return; }
   });
 

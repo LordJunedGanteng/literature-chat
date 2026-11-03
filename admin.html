@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,400;6..144,500;6..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261103c">
+<link rel="stylesheet" href="style.css?v=20261103g">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -69,6 +69,15 @@
           <button class="pbtn" id="reloadBtn">Muat ulang status</button>
         </div>
         <p class="adm-note" id="saveNote">Perubahan butuh sekitar 1 menit sampai kelihatan ke pengunjung (GitHub Pages lagi build ulang).</p>
+
+        <div class="aidiv"></div>
+        <h2>Asisten AI buat semua pengunjung</h2>
+        <p class="muted">Isi URL proxy Groq (Cloudflare Worker) biar pengunjung bisa pakai AI tanpa key sendiri. Key Groq lo tetap tersimpan di Cloudflare, bukan di sini. Kosongin buat matiin.</p>
+        <label class="fld"><span>URL proxy AI</span><input type="text" id="aiProxy" placeholder="https://groq-proxy.namalo.workers.dev" autocomplete="off"></label>
+        <div class="adm-acts">
+          <button class="pbtn tonal" id="saveBtn2">Simpan &amp; terapkan</button>
+          <a class="pbtn" href="https://github.com/LordJunedGanteng/literature-chat/blob/main/worker/README.md" target="_blank" rel="noopener">Cara bikin proxy ↗</a>
+        </div>
       </div>
 
       <div class="side-col">
@@ -113,7 +122,7 @@
   </section>
 </div>
 
-<script src="core.js?v=20261103c"></script>
-<script src="admin.js?v=20261103c"></script>
+<script src="core.js?v=20261103g"></script>
+<script src="admin.js?v=20261103g"></script>
 </body>
 </html>

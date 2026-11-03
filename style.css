@@ -430,3 +430,63 @@ table.fmt-b td { border: 1px solid var(--line); }
 .cellwide { min-width: 180px; max-width: 360px; color: var(--ink-2); }
 .editable { cursor: text; border-radius: 6px; margin: -3px -5px; padding: 3px 5px; }
 .editable:hover { background: var(--hover); }
+
+/* ================= asisten AI ================= */
+svg.star.sm { width: 17px; height: 17px; }
+.sitem svg.star.sm { width: 22px; height: 22px; }
+.badge.off { background: var(--surface-2); color: var(--ink-3); }
+.aians { line-height: 1.7; }
+.aians p { margin: 0 0 10px; }
+.aians ul { margin: 0 0 10px; padding-left: 20px; }
+.aians li { margin-bottom: 6px; }
+.aians.err { color: var(--warn); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.aians .shimmer { padding: 4px 0 6px; }
+a.cite {
+  display: inline-block; font-size: 11.5px; font-weight: 600; line-height: 1; vertical-align: 2px;
+  padding: 3px 5px; margin: 0 1px; border-radius: 6px; text-decoration: none;
+  background: var(--accent-bg); color: var(--accent-ink);
+}
+a.cite:hover { filter: brightness(.95); }
+.caret { display: inline-block; width: 8px; height: 16px; background: var(--accent); vertical-align: -2px; margin-left: 2px; border-radius: 2px; animation: blink2 1s steps(2) infinite; }
+@keyframes blink2 { 50% { opacity: 0; } }
+.aimeta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-3); margin: 2px 0 0; }
+.linkbtn { border: 0; background: none; color: var(--accent); cursor: pointer; padding: 0; font-size: inherit; }
+.linkbtn:hover { text-decoration: underline; }
+.aidiv { height: 1px; background: var(--line); margin: 16px 0 14px; }
+.aihint { margin-bottom: 12px; }
+.card.flash { animation: flash 1.6s ease; }
+@keyframes flash { 0%, 40% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+.aistate { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 0 0 16px; color: var(--ink-2); }
+.modal input[type="password"] { width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; font-size: 14px; }
+.modal .btn.danger { color: var(--danger); }
+
+/* ================= hasil meleset: animasi hapus ================= */
+.cards { gap: 0; }
+.cards > .card { margin-top: 10px; }
+.cards > .card:first-child { margin-top: 0; }
+.card.prune { position: relative; overflow: hidden; pointer-events: none; animation: prune 1.9s cubic-bezier(.4, 0, .2, 1) .5s forwards; }
+.card.prune::after {
+  content: attr(data-miss); position: absolute; right: 14px; top: 12px;
+  font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 99px;
+  background: var(--danger); color: var(--bg); opacity: 0; transform: scale(.8);
+  animation: stamp .35s ease .5s forwards;
+}
+@keyframes stamp { to { opacity: 1; transform: scale(1); } }
+@keyframes prune {
+  0%   { max-height: 420px; }
+  18%  { box-shadow: 0 0 0 2px var(--danger); background: color-mix(in srgb, var(--danger) 9%, transparent); opacity: 1; transform: none; }
+  45%  { opacity: 1; transform: none; max-height: 420px; }
+  70%  { opacity: 0; transform: translateX(40px) scale(.97); max-height: 420px; margin-top: 10px; padding-top: 14px; padding-bottom: 14px; border-width: 1px; }
+  100% { opacity: 0; transform: translateX(40px) scale(.97); max-height: 0; margin-top: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
+}
+.card.dim { opacity: .62; border-style: dashed; }
+.card.dim:hover { opacity: 1; }
+.card.dim .num { display: none; }
+.prunebar {
+  display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 10px 14px; border-radius: 14px;
+  background: var(--surface); font-size: 13.5px; color: var(--ink-2); animation: fadein .4s ease 2.2s both;
+}
+.prunebar svg.i { width: 18px; height: 18px; color: var(--ink-3); }
+.prunebar span { flex: 1; }
+@keyframes fadein { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .card.prune { display: none; } .prunebar { animation: none; } }

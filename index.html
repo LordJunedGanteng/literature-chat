@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,400;6..144,500;6..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261103c">
+<link rel="stylesheet" href="style.css?v=20261103g">
 <script>/* pengaman: jangan pernah biarin halaman ketutup lebih dari 3 detik */setTimeout(function(){document.documentElement.classList.remove("boot")},3000)</script>
 </head>
 <body>
@@ -36,6 +36,7 @@
     </div>
 
     <div class="side-bottom">
+      <button class="sitem" id="aiBtn" title="Asisten AI"><svg class="star sm" viewBox="0 0 24 24" aria-hidden="true"><path fill="url(#sg)" d="M12 2C12 7.523 16.477 12 22 12C16.477 12 12 16.477 12 22C12 16.477 7.523 12 2 12C7.523 12 12 7.523 12 2Z"/></svg><span>Asisten AI</span><b class="badge off" id="aiBadge">off</b></button>
       <button class="sitem" data-view="tabel" title="Tabel xlsx"><i data-i="table"></i><span>Tabel xlsx</span><b class="badge" id="cnt">0</b></button>
       <button class="sitem" data-view="bantuan" title="Bantuan"><i data-i="help"></i><span>Bantuan</span></button>
       <button class="sitem" id="themeBtn" title="Ganti tema"><i data-i="moon"></i><span id="themeLbl">Tema gelap</span></button>
@@ -93,7 +94,7 @@
             </div>
 
             <form class="composer" id="composer" autocomplete="off">
-              <textarea id="input" rows="1" placeholder="Tanya topik, mis. pelecehan seksual di industri kreatif 2015-2025"></textarea>
+              <textarea id="input" rows="1" placeholder="Tanya topik atau pertanyaan, mis. apa research gap soal crunch culture di industri animasi?"></textarea>
               <div class="crow">
                 <button type="button" class="ib" id="filterBtn" title="Filter"><i data-i="sliders"></i></button>
                 <button type="button" class="ib" id="importBtn" title="Impor file .xlsx lama"><i data-i="attach"></i></button>
@@ -138,6 +139,7 @@
               <option value="year">Tahun terbaru</option>
             </select></label>
           <div class="sp"></div>
+          <button class="pbtn" id="aiFillBtn"><svg class="star sm" viewBox="0 0 24 24" aria-hidden="true"><path fill="url(#sg)" d="M12 2C12 7.523 16.477 12 22 12C16.477 12 12 16.477 12 22C12 16.477 7.523 12 2 12C7.523 12 12 7.523 12 2Z"/></svg> Isi pakai AI</button>
           <button class="pbtn tonal" id="xlsxBtn"><i data-i="download"></i> Download .xlsx</button>
           <button class="pbtn" id="tsvBtn"><i data-i="copy"></i> Copy ke Excel</button>
           <button class="pbtn" id="csvBtn">CSV</button>
@@ -198,7 +200,8 @@
 </div>
 
 <div id="modalRoot"></div>
-<script src="core.js?v=20261103c"></script>
-<script src="ui.js?v=20261103c"></script>
+<script src="core.js?v=20261103g"></script>
+<script src="ai.js?v=20261103g"></script>
+<script src="ui.js?v=20261103g"></script>
 </body>
 </html>

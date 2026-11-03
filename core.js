@@ -348,12 +348,92 @@ function fillAnalysis(r, force) {
   return r;
 }
 
+/* ======================= cek relevansi hasil ======================= */
+// Singkatan yang sering dipakai + padanannya (termasuk bahasa lain yang sering muncul di abstrak).
+const ABBREV = {
+  ai: ['ai', 'a.i.', 'artificial intelligence', 'generative', 'genai', 'machine learning', 'llm', 'large language model', 'chatgpt', 'gpt',
+       'neural network', 'deep learning', 'inteligencia artificial', 'inteligência artificial', 'intelligence artificielle', 'kecerdasan buatan', 'ia'],
+  vr: ['vr', 'virtual reality', 'realidad virtual', 'realitas virtual'],
+  ar: ['ar', 'augmented reality', 'realidad aumentada'],
+  xr: ['xr', 'extended reality', 'mixed reality'],
+  ml: ['ml', 'machine learning'],
+  llm: ['llm', 'large language model', 'chatgpt', 'gpt'],
+  nlp: ['nlp', 'natural language processing'],
+  iot: ['iot', 'internet of things'],
+  ugc: ['ugc', 'user-generated content', 'user generated content'],
+  esg: ['esg', 'environmental, social'],
+  hr: ['hr', 'human resource']
+};
+const PHRASE_TO_ABBR = [
+  [/artificial intelligence/gi, 'ai'], [/virtual reality/gi, 'vr'], [/augmented reality/gi, 'ar'],
+  [/machine learning/gi, 'ml'], [/large language models?/gi, 'llm'], [/internet of things/gi, 'iot'],
+  [/natural language processing/gi, 'nlp']
+];
+const REL_STOP = new Set(('the of and in on for to a an with by from at as is are be or its into about between among within '
+  + 'study studies research review analysis impact effect effects case role toward towards using use new').split(' '));
+const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+function stem(w) {
+  if (w.length > 5 && w.endsWith('ies')) return w.slice(0, -3);
+  if (w.length > 6 && w.endsWith('ing')) return w.slice(0, -3);
+  if (w.length > 5 && w.endsWith('ed')) return w.slice(0, -2);
+  if (w.length > 4 && w.endsWith('es')) return w.slice(0, -2);
+  if (w.length > 4 && w.endsWith('s')) return w.slice(0, -1);
+  if (w.length > 4 && w.endsWith('y')) return w.slice(0, -1);
+  return w;
+}
+
+function queryTerms(q) {
+  let s = ' ' + String(q || '').toLowerCase() + ' ';
+  for (const [re, ab] of PHRASE_TO_ABBR) s = s.replace(re, ' ' + ab + ' ');
+  const out = [];
+  for (const w of s.split(/[^a-z0-9À-ɏ.-]+/)) {
+    const t = w.replace(/^[.-]+|[.-]+$/g, '');
+    if (!t || REL_STOP.has(t)) continue;
+    if (t.length < 3 && !ABBREV[t]) continue;
+    if (!out.includes(t)) out.push(t);
+  }
+  return out;
+}
+
+function termIn(term, hay) {
+  const forms = ABBREV[term] || [term];
+  return forms.some(f => f.length <= 3
+    ? new RegExp('(^|[^a-z0-9])' + reEsc(f) + '([^a-z0-9]|$)', 'i').test(hay)        // singkatan: harus kata utuh
+    : new RegExp('(^|[^a-z0-9À-ɏ])' + reEsc(stem(f)), 'i').test(hay));     // kata biasa: awalan kata (workers ~ worker)
+}
+
+// Tandai hasil yang ga nyebut cukup banyak kata kunci di judul/abstrak/keyword.
+function checkRelevance(r, q) {
+  const terms = queryTerms(q);
+  if (!terms.length) { r.offTopic = false; r.missing = []; return r; }
+  const hay = [r.title, r.abstract, (r.keywords || []).join(' ')].join(' ').toLowerCase();
+  const missing = terms.filter(t => !termIn(t, hay));
+  const need = terms.length <= 2 ? terms.length : Math.ceil(terms.length * 0.75);
+  const hit = terms.length - missing.length;
+  // tanpa abstrak cuma judul yang bisa dicek: query pendek tetap wajib lengkap, query panjang sedikit lebih longgar
+  const needTitle = terms.length <= 2 ? terms.length : Math.max(1, need - 1);
+  r.offTopic = r.abstract ? hit < need : hit < needTitle;
+  r.missing = missing;
+  return r;
+}
+
+// OpenAlex: perluas singkatan jadi (AI OR "artificial intelligence") pakai pencarian boolean
+function openAlexQuery(q) {
+  const terms = queryTerms(q);
+  if (!terms.some(t => ABBREV[t])) return q.replace(/[,:|]/g, ' ');
+  return terms.map(t => ABBREV[t]
+    ? '(' + ABBREV[t].filter(f => f.length > 2 && !f.includes('.') && !/[À-ɏ]/.test(f)).slice(0, 4)
+        .concat(t.toUpperCase()).map(f => f.includes(' ') ? '"' + f + '"' : f).join(' OR ') + ')'
+    : t).join(' AND ');
+}
+
 /* ======================= pencarian ======================= */
 
 async function searchOpenAlex(q, opts, pg, broad) {
   const filters = [];
   // default: cocokkan di judul+abstrak (presisi); "broad" = ikut full text, dipakai kalau hasilnya 0
-  if (!broad) filters.push('title_and_abstract.search:' + encodeURIComponent(q.replace(/[,:|]/g, ' ')));
+  if (!broad) filters.push('title_and_abstract.search:' + encodeURIComponent(openAlexQuery(q)));
   if (opts.y1) filters.push('from_publication_date:' + opts.y1 + '-01-01');
   if (opts.y2) filters.push('to_publication_date:' + opts.y2 + '-12-31');
   if (opts.oaOnly) filters.push('is_oa:true');
@@ -688,6 +768,7 @@ function editRecord(id, focusField) {
         + '<div class="muted" style="max-height:140px;overflow:auto;font-size:13px">' + esc(rec.abstract) + '</div></div>'
       : '<p class="muted" style="font-size:13px">Abstrak ga tersedia buat entri ini — isi manual ya.</p>')
     + '<div class="modal-acts">'
+      + (typeof aiAnalyze === 'function' ? '<button class="btn" id="mAI" style="margin-right:auto">✦ Isi pakai AI</button>' : '')
       + (rec.abstract || rec.query ? '<button class="btn" id="mAuto">Isi ulang otomatis</button>' : '')
       + '<button class="btn" id="mCancel">Batal</button>'
       + '<button class="btn primary" id="mSave">Simpan</button>'
@@ -696,8 +777,24 @@ function editRecord(id, focusField) {
   $('#mCancel').onclick = close;
   root.querySelector('.backdrop').onclick = (e) => { if (e.target.classList.contains('backdrop')) close(); };
   if ($('#mAuto')) $('#mAuto').onclick = () => { for (const [k] of fields) $('#f_' + k).value = AUTO_FN[k](rec); };
+  if ($('#mAI')) $('#mAI').onclick = async () => {
+    if (!aiReady()) { close(); openAISettings(); return; }
+    const b = $('#mAI'); b.disabled = true; b.textContent = 'AI lagi mikir…';
+    try {
+      const v = (await aiAnalyze([rec]))[rec.id];
+      if (!v) throw new Error('AI ga balikin hasil buat entri ini');
+      for (const [k] of fields) if (v[k] && $('#f_' + k)) $('#f_' + k).value = v[k];
+      b.textContent = '✦ Terisi — cek lalu Simpan';
+    } catch (e) { toast('AI gagal: ' + e.message); b.textContent = '✦ Isi pakai AI'; }
+    b.disabled = false;
+  };
   $('#mSave').onclick = () => {
-    for (const [k] of fields) rec[k] = $('#f_' + k).value.trim();
+    rec.userEdited = rec.userEdited || {};
+    for (const [k] of fields) {
+      const v = $('#f_' + k).value.trim();
+      if (v !== (rec[k] || '')) rec.userEdited[k] = true; // diubah manual -> jangan ditimpa AI massal
+      rec[k] = v;
+    }
     saveTable(); renderTable(); close();
   };
   const f = $('#f_' + (focusField || fields[0][0])) || $('#f_' + fields[0][0]);

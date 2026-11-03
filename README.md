@@ -24,3 +24,8 @@ Buka `admin.html` → login password admin → nyalain/matiin **mode maintenance
 Saklarnya disimpan di `status.json`; web ngecek file ini tiap dibuka & tiap 1 menit.
 Buat menyimpan perubahan, admin perlu token GitHub *fine-grained* (repo ini saja, izin **Contents: Read and write**) yang disimpan hanya di browser admin.
 Password admin cuma disimpan sebagai hash PBKDF2 — ini kunci tampilan, bukan pengaman utama; pengamannya adalah token GitHub.
+
+## Asisten AI (Groq, gratis)
+- **Jawab pertanyaan** berdasarkan jurnal yang ketemu, dengan nomor sumber `[1]`, `[2]` yang bisa diklik ke kartunya
+- **Isi tabel**: ringkasan bahasa Indonesia + Method / Main Finding / Relevancy / Research Gap (hasil edit manual tidak ditimpa)
+- Aktifkan lewat menu **Asisten AI**: tempel key gratis dari [console.groq.com/keys](https://console.groq.com/keys) (disimpan di browser saja), **atau** admin pasang proxy Cloudflare Worker supaya semua pengunjung bisa pakai tanpa key — lihat [`worker/README.md`](worker/README.md)

@@ -75,6 +75,7 @@ function formState() {
     title: $('#mTitle').value.trim() || 'Lagi maintenance sebentar',
     message: $('#mMsg').value.trim(),
     until: fromLocalInput($('#mUntil').value),
+    aiProxy: $('#aiProxy').value.trim().replace(/\/+$/, ''),
     updated: new Date().toISOString()
   };
 }
@@ -90,6 +91,7 @@ function fillForm(s) {
   $('#mTitle').value = s.title || 'Lagi maintenance sebentar';
   $('#mMsg').value = s.message || '';
   $('#mUntil').value = toLocalInput(s.until);
+  $('#aiProxy').value = s.aiProxy || '';
   updatePreview();
 }
 
@@ -126,7 +128,7 @@ async function saveStatus() {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        message: data.maintenance ? 'Maintenance: aktif' : 'Maintenance: nonaktif',
+        message: (data.maintenance ? 'Maintenance: aktif' : 'Maintenance: nonaktif') + (data.aiProxy ? ' · proxy AI: on' : ''),
         content: b64encode(JSON.stringify(data, null, 2) + '\n'),
         branch: 'main',
         ...(liveSha ? { sha: liveSha } : {})
@@ -248,6 +250,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   ['mOn', 'mTitle', 'mMsg', 'mUntil'].forEach(id => $('#' + id).addEventListener('input', updatePreview));
   $('#saveBtn').onclick = saveStatus;
+  $('#saveBtn2').onclick = () => {
+    const v = $('#aiProxy').value.trim();
+    if (v && !/^https:\/\/\S+$/.test(v)) { toast('URL proxy harus diawali https://'); return; }
+    saveStatus();
+  };
   $('#reloadBtn').onclick = loadStatus;
 
   $('#tokSave').onclick = () => {
