@@ -1,35 +1,32 @@
-/* UI chatbot: pesan -> parsing filter -> cari literatur -> kartu jurnal + riwayat. */
+/* UI chatbot ala Gemini: pesan -> parsing filter -> cari literatur -> kartu jurnal + riwayat. */
 
 /* ======================= ikon ======================= */
 
 const ICONS = {
-  book: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
-  chat: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
-  chatq: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><circle cx="12" cy="12" r="3"/><path d="m14.2 14.2 1.8 1.8"/>',
+  menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+  edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  down: '<path d="m6 9 6 6 6-6"/>',
   table: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>',
-  sheet: '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><path d="M14 2v6h6M8 13h2M14 13h2M8 17h2M14 17h2"/>',
   download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
-  history: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
   sliders: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2m-7.07-14.07 1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
   moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
-  upload: '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><path d="M14 2v6h6"/><path d="M12 18v-6m-3 3 3-3 3 3"/>',
+  attach: '<path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
   mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/>',
-  send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+  send: '<path d="M12 19V5M5 12l7-7 7 7"/>',
   copy: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
   listplus: '<path d="M11 12H3M16 6H3M16 18H3M18 9v6M21 12h-6"/>',
   external: '<path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
   refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
-  more: '<circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>',
   trash: '<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
   x: '<path d="M18 6 6 18M6 6l12 12"/>',
   quote: '<path d="M10 11H6a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v6c0 2.5-1.5 4-4 4"/><path d="M19 11h-4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v6c0 2.5-1.5 4-4 4"/>',
-  user: '<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>',
   check: '<path d="M20 6 9 17l-5-5"/>',
   help: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/>'
 };
 const ico = (n) => '<svg class="i" viewBox="0 0 24 24" aria-hidden="true">' + (ICONS[n] || '') + '</svg>';
+const STAR = '<svg class="star" viewBox="0 0 24 24" aria-hidden="true"><path fill="url(#sg)" d="M12 2C12 7.523 16.477 12 22 12C16.477 12 12 16.477 12 22C12 16.477 7.523 12 2 12C7.523 12 12 7.523 12 2Z"/></svg>';
 function paintIcons(root) {
   (root || document).querySelectorAll('i[data-i]').forEach(el => { el.outerHTML = ico(el.dataset.i); });
 }
@@ -37,6 +34,7 @@ function paintIcons(root) {
 /* ======================= state ======================= */
 
 const LS_CHATS = 'litrev.chats.v1';
+const MAX_ALL = 500;   // batas "Muat semua" biar browser & localStorage tetap enteng
 let chats = [];        // [{id, title, created, updated, msgs:[]}]
 let cur = null;        // chat aktif
 let busy = false;
@@ -50,7 +48,7 @@ function saveChats() {
   chats = chats.slice(0, 40);
   // jaga ukuran localStorage: potong abstrak & jumlah hasil yang disimpan
   const slim = chats.map(c => ({ ...c, msgs: c.msgs.map(m => m.results
-    ? { ...m, results: m.results.slice(0, 75).map(r => ({ ...r, abstract: (r.abstract || '').slice(0, 1500) })) }
+    ? { ...m, results: m.results.slice(0, MAX_ALL).map(r => ({ ...r, abstract: (r.abstract || '').slice(0, m.results.length > 75 ? 600 : 1500) })) }
     : m) }));
   try { localStorage.setItem(LS_CHATS, JSON.stringify(slim)); }
   catch (e) { try { localStorage.setItem(LS_CHATS, JSON.stringify(slim.slice(0, 10))); } catch (e2) {} }
@@ -176,6 +174,7 @@ async function send(text) {
   text = text.trim();
   if (!text || busy) return;
   if (!cur) startChat();
+  showView('chat');
   cur.msgs.push({ role: 'user', text, t: Date.now() });
   if (!cur.title) cur.title = text;
   commit(); renderChat();
@@ -186,7 +185,7 @@ async function send(text) {
     else botText('Tabel lo masih kosong. Cari literatur dulu, terus klik <b>+ Tabel</b> di kartunya.');
     return;
   }
-  if (/^((buka|lihat|liat)\s+)?tabel$/i.test(text)) { botText('Oke, gua bukain tab Tabel.'); showView('tabel'); return; }
+  if (/^((buka|lihat|liat)\s+)?tabel$/i.test(text)) { botText('Oke, gua bukain Tabel xlsx.'); showView('tabel'); return; }
   if (/^(help|bantuan|cara pakai|gimana caranya)\??$/i.test(text)) {
     botText('Ketik aja topiknya, contoh: <b>gender gap VFX industry 2018-2025 open access</b>. Tahun, “open access”, “terbaru”, dan “paling banyak disitasi” langsung gua baca sebagai filter. Hasilnya bisa lo masukin ke tabel format xlsx lo.', SUGGEST.slice(0, 3));
     return;
@@ -202,7 +201,7 @@ async function send(text) {
   try {
     const { total, items, src, fellBack } = await fetchPage(q, opts, 1);
     for (const r of items) if (!r.summary) r.summary = autoSummary(r);
-    cur.msgs.push({ role: 'bot', kind: 'results', q, opts, translated, total, results: items, page: 1, shown: 5, src, fellBack, t: Date.now() });
+    cur.msgs.push({ role: 'bot', kind: 'results', q, opts, translated, total, results: items, page: 1, src, fellBack, t: Date.now() });
   } catch (e) {
     cur.msgs.push({ role: 'bot', kind: 'error', text: e.message, retry: text, t: Date.now() });
   } finally {
@@ -220,14 +219,13 @@ async function loadMore(mi) {
   const m = cur.msgs[mi];
   if (!m || busy) return;
   busy = true; setBusy(true);
-  const btn = document.querySelector('[data-more="' + mi + '"]');
-  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="dots"><i></i><i></i><i></i></span>'; }
+  const btn = document.querySelector('.more[data-more="' + mi + '"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Memuat…'; }
   try {
     const { items } = await fetchPage(m.q, { ...m.opts, src: m.src }, m.page + 1);
     const seen = new Set(m.results.map(keyOf));
     for (const r of items) if (!seen.has(keyOf(r))) { r.summary = autoSummary(r); m.results.push(r); }
     m.page += 1;
-    m.shown = m.results.length;
   } catch (e) {
     toast('Gagal memuat: ' + e.message);
   } finally {
@@ -235,7 +233,33 @@ async function loadMore(mi) {
   }
 }
 
-function setBusy(on) { $('#sendBtn').disabled = on; }
+async function loadAll(mi) {
+  const m = cur.msgs[mi];
+  if (!m || busy) return;
+  const want = Math.min(m.total, MAX_ALL);
+  busy = true; setBusy(true);
+  const btns = document.querySelectorAll('[data-all="' + mi + '"], .more[data-more="' + mi + '"]');
+  btns.forEach(b => { b.disabled = true; });
+  const label = document.querySelector('.more[data-all="' + mi + '"]');
+  try {
+    const size = 200; // per halaman maksimal OpenAlex
+    const seen = new Set(m.results.map(keyOf));
+    for (let pg = 1; (pg - 1) * size < want; pg++) {
+      if (label) label.textContent = 'Memuat ' + Math.min(pg * size, want) + ' / ' + want + '…';
+      const { items } = await fetchPage(m.q, { ...m.opts, src: m.src, size }, pg);
+      for (const r of items) if (!seen.has(keyOf(r))) { seen.add(keyOf(r)); r.summary = autoSummary(r); m.results.push(r); }
+      if (items.length < size) break;
+    }
+    m.results = m.results.slice(0, want);
+    m.page = Math.ceil(m.results.length / 25);
+  } catch (e) {
+    toast('Gagal memuat: ' + e.message);
+  } finally {
+    busy = false; setBusy(false); commit(); renderChat(mi);
+  }
+}
+
+function setBusy(on) { $('#sendBtn').disabled = on || !$('#input').value.trim(); }
 
 /* ======================= render chat ======================= */
 
@@ -245,9 +269,9 @@ function cardHTML(r, mi, i) {
     ? esc(r.authors.slice(0, 3).map(a => (a.given ? a.given + ' ' : '') + a.family).join(', ')) + (r.authors.length > 3 ? ' dkk.' : '')
     : 'penulis tidak tercatat';
   const where = [r.container && '<em>' + esc(r.container) + '</em>', esc(r.year)].filter(Boolean).join(' · ');
+  const title = esc(r.title || '(tanpa judul)');
   return '<div class="card">'
-    + '<div class="n">' + (i + 1) + '</div>'
-    + '<h4>' + (r.url ? '<a href="' + esc(r.url) + '" target="_blank" rel="noopener">' + esc(r.title || '(tanpa judul)') + '</a>' : esc(r.title || '(tanpa judul)')) + '</h4>'
+    + '<h4><span class="num">' + (i + 1) + '.</span>' + (r.url ? '<a href="' + esc(r.url) + '" target="_blank" rel="noopener">' + title + '</a>' : title) + '</h4>'
     + '<div class="meta">' + who + (where ? ' — ' + where : '') + '</div>'
     + '<div class="row">'
       + (r.oa ? '<span class="tag g">open access</span>' : '')
@@ -256,12 +280,16 @@ function cardHTML(r, mi, i) {
     + '</div>'
     + (r.abstract ? '<p class="abs clamp" title="klik buat buka/tutup">' + esc(r.abstract) + '</p>' : '')
     + '<div class="cbtns">'
-      + '<button class="pbtn ' + (inT ? 'done' : 'go') + '" data-add="' + mi + ':' + i + '"' + (inT ? ' disabled' : '') + '>'
+      + '<button class="pbtn ' + (inT ? 'done' : 'tonal') + '" data-add="' + mi + ':' + i + '"' + (inT ? ' disabled' : '') + '>'
         + ico(inT ? 'check' : 'plus') + (inT ? 'Di tabel' : 'Tabel') + '</button>'
       + '<button class="pbtn" data-cite="' + mi + ':' + i + '" title="Copy referensi lengkap">' + ico('quote') + 'Sitasi</button>'
       + '<button class="pbtn" data-intext="' + mi + ':' + i + '" title="Copy sitasi dalam teks">' + esc(inText(r)) + '</button>'
-      + (r.url ? '<a class="pbtn" href="' + esc(r.url) + '" target="_blank" rel="noopener" style="text-decoration:none">' + ico('external') + 'Buka</a>' : '')
+      + (r.url ? '<a class="pbtn" href="' + esc(r.url) + '" target="_blank" rel="noopener">' + ico('external') + 'Buka</a>' : '')
     + '</div></div>';
+}
+
+function suggHTML(list) {
+  return '<div class="sugg">' + list.map(s => '<button data-say="' + esc(s) + '">' + esc(s) + '</button>').join('') + '</div>';
 }
 
 function botResultsHTML(m, mi) {
@@ -270,100 +298,85 @@ function botResultsHTML(m, mi) {
   if (m.fellBack) tags.push('<span class="tag w">OpenAlex limit → Crossref</span>');
 
   if (!m.results.length) {
-    return '<div class="bub">Ga nemu jurnal buat <b>“' + esc(m.q) + '”</b>. Coba kata kunci bahasa Inggris, lebih umum, atau longgarin filter tahun.'
-      + '<div class="fl">' + tags.join('') + '</div>'
-      + '<div class="sugg">' + SUGGEST.slice(0, 3).map(s => '<button data-say="' + esc(s) + '">' + esc(s) + '</button>').join('') + '</div></div>';
+    return 'Ga nemu jurnal buat <b>“' + esc(m.q) + '”</b>. Coba kata kunci bahasa Inggris, lebih umum, atau longgarin filter tahun.'
+      + '<div class="ftags">' + tags.join('') + '</div>' + suggHTML(SUGGEST.slice(0, 3));
   }
-  const shown = Math.min(m.shown || 5, m.results.length);
+  const n = m.results.length;
+  const totalTxt = m.total.toLocaleString('id-ID');
+  const canMore = n < m.total && n < MAX_ALL;
   let more = '';
-  if (shown < m.results.length) more = '<button class="pbtn more" data-show="' + mi + '">Tampilkan ' + (m.results.length - shown) + ' lainnya</button>';
-  else if (m.results.length < m.total) more = '<button class="pbtn more" data-more="' + mi + '">' + ico('refresh') + 'Muat 25 lagi</button>';
+  if (canMore) {
+    const all = Math.min(m.total, MAX_ALL);
+    more = '<div class="morebar">'
+      + '<span class="muted">Ditampilkan ' + n + ' dari ' + totalTxt + '</span>'
+      + '<button class="pbtn more" data-more="' + mi + '">' + ico('plus') + 'Muat 25 lagi</button>'
+      + '<button class="pbtn tonal more" data-all="' + mi + '">' + ico('download') + (all < m.total ? 'Muat ' + all + ' teratas' : 'Muat semua (' + all + ')') + '</button>'
+      + '</div>';
+  } else if (n < m.total) {
+    more = '<div class="morebar"><span class="muted">Ditampilkan ' + n + ' dari ' + totalTxt
+      + '. Batas tampilan ' + MAX_ALL + ' — persempit kata kunci atau filter tahun buat sisanya.</span></div>';
+  }
 
-  return '<div class="bub">Nemu <b>' + m.total.toLocaleString('id-ID') + '</b> jurnal buat <b>“' + esc(m.q) + '”</b>. '
-    + (shown < m.results.length ? 'Ini ' + shown + ' teratas:' : 'Ini ' + shown + ' hasilnya:')
-    + '<div class="fl">' + tags.join('') + '</div></div>'
-    + '<div class="cards">' + m.results.slice(0, shown).map((r, i) => cardHTML(r, mi, i)).join('') + '</div>'
+  return 'Nemu <b>' + totalTxt + '</b> jurnal buat <b>“' + esc(m.q) + '”</b>. '
+    + (n < m.total ? 'Ditampilkan <b>' + n + '</b> teratas (urut ' + (m.opts.sort === 'cited' ? 'sitasi' : m.opts.sort === 'newest' ? 'terbaru' : 'relevansi') + '):' : 'Semua ' + n + ' ditampilkan:')
+    + '<div class="ftags">' + tags.join('') + '</div>'
+    + '<div class="cards">' + m.results.map((r, i) => cardHTML(r, mi, i)).join('') + '</div>'
     + more
     + '<div class="acts">'
       + '<button class="ib" data-addall="' + mi + '" title="Tambah semua hasil ke tabel">' + ico('listplus') + '</button>'
       + '<button class="ib" data-copyall="' + mi + '" title="Copy semua sitasi">' + ico('copy') + '</button>'
       + '<button class="ib" data-xlsx="' + mi + '" title="Download hasil ini sebagai .xlsx">' + ico('download') + '</button>'
-      + (m.results.length < m.total ? '<button class="ib" data-more="' + mi + '" title="Muat 25 hasil lagi">' + ico('refresh') + '</button>' : '')
       + '<button class="ib" data-view="tabel" title="Buka tabel">' + ico('table') + '</button>'
     + '</div>';
 }
 
 function msgHTML(m, mi) {
-  if (m.role === 'user') {
-    return '<div class="m user"><div class="body"><div class="bub">' + esc(m.text) + '</div></div>'
-      + '<div class="ava me">' + ico('user') + '</div></div>';
-  }
-  let inner = '';
+  if (m.role === 'user') return '<div class="m user"><div class="ubub">' + esc(m.text) + '</div></div>';
+  let inner;
   if (m.kind === 'results') inner = botResultsHTML(m, mi);
-  else if (m.kind === 'error') inner = '<div class="bub">Gagal ngambil data: <span style="color:var(--warn)">' + esc(m.text) + '</span>. Cek koneksi atau coba lagi.</div>'
-    + '<div class="acts"><button class="pbtn" data-say="' + esc(m.retry) + '">' + ico('refresh') + 'Coba lagi</button></div>';
-  else inner = '<div class="bub">' + m.html
-    + (m.sugg ? '<div class="sugg">' + m.sugg.map(s => '<button data-say="' + esc(s) + '">' + esc(s) + '</button>').join('') + '</div>' : '')
-    + '</div>';
-  return '<div class="m bot"><div class="ava"></div><div class="body">' + inner + '</div></div>';
+  else if (m.kind === 'error') inner = 'Gagal ngambil data: <span style="color:var(--warn)">' + esc(m.text) + '</span>. Cek koneksi atau coba lagi.'
+    + '<div class="acts" style="margin-left:0"><button class="pbtn" data-say="' + esc(m.retry) + '">' + ico('refresh') + 'Coba lagi</button></div>';
+  else inner = m.html + (m.sugg ? suggHTML(m.sugg) : '');
+  return '<div class="m bot">' + STAR + '<div class="txt">' + inner + '</div></div>';
 }
 
 function renderChat(focusMsg) {
-  const box = $('#msgs');
-  const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
-  let html = '';
-  if (!cur || !cur.msgs.length) {
-    html = msgHTML({ role: 'bot', kind: 'text',
-      html: 'Halo! Gua bantu nyari <b>studi literatur</b>. Ketik topik atau pertanyaan lo — hasilnya langsung bisa dimasukin ke tabel format xlsx lo (LINK, TAHUN, REFERENSI, RINGKASAN).',
-      sugg: SUGGEST }, -1);
-  } else {
-    html = cur.msgs.map(msgHTML).join('');
-  }
-  if (typing) html += '<div class="m bot"><div class="ava"></div><div class="body"><div class="bub"><span class="dots"><i></i><i></i><i></i></span></div></div></div>';
-  box.innerHTML = html;
-  if (focusMsg == null || atBottom) box.scrollTop = box.scrollHeight;
+  const view = $('#view-chat');
+  const empty = (!cur || !cur.msgs.length) && !typing;
+  view.classList.toggle('empty', empty);
+  if (empty) { $('#msgs').innerHTML = ''; return; }
+
+  const sc = $('#scroll');
+  const atBottom = sc.scrollHeight - sc.scrollTop - sc.clientHeight < 120;
+  let html = cur.msgs.map(msgHTML).join('');
+  if (typing) html += '<div class="m bot thinking">' + STAR + '<div class="shimmer"><i></i><i></i><i></i></div></div>';
+  $('#msgs').innerHTML = html;
+  if (focusMsg == null || atBottom) sc.scrollTop = sc.scrollHeight;
 }
 
-/* ======================= riwayat ======================= */
-
-function dayGroup(ts) {
-  const d0 = new Date(); d0.setHours(0, 0, 0, 0);
-  const diff = Math.floor((d0 - new Date(ts).setHours(0, 0, 0, 0)) / 864e5);
-  if (diff <= 0) return 'Hari ini';
-  if (diff === 1) return 'Kemarin';
-  if (diff < 7) return diff + ' hari lalu';
-  if (diff < 14) return 'Minggu lalu';
-  return 'Lebih lama';
-}
+/* ======================= riwayat (sidebar) ======================= */
 
 function renderHistory() {
   const box = $('#hlist');
-  if (!chats.length) { box.innerHTML = '<div class="hempty">Belum ada riwayat. Pencarian lo bakal muncul di sini.</div>'; return; }
-  let html = '', last = '';
-  for (const c of chats) {
-    const g = dayGroup(c.updated);
-    if (g !== last) { html += '<div class="hgroup">' + g + '</div>'; last = g; }
-    const n = c.msgs.filter(m => m.kind === 'results').length;
-    const time = new Date(c.updated).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-    html += '<div class="hitem' + (cur && cur.id === c.id ? ' on' : '') + '" data-chat="' + c.id + '" role="button" tabindex="0">'
-      + '<span class="hic">' + ico('chatq') + '</span>'
-      + '<span class="ht"><div>' + esc(c.title || 'Chat baru') + '</div><small>' + n + ' pencarian · ' + time + '</small></span>'
-      + '<button class="hdel" data-delchat="' + c.id + '" title="Hapus">' + ico('x') + '</button>'
-      + '</div>';
-  }
-  box.innerHTML = html;
+  if (!chats.length) { box.innerHTML = '<div class="hempty">Belum ada riwayat.</div>'; return; }
+  box.innerHTML = chats.map(c => '<div class="hitem' + (cur && cur.id === c.id ? ' on' : '') + '">'
+    + '<button class="ht" data-chat="' + c.id + '" title="' + esc(c.title || 'Chat baru') + '">' + esc(c.title || 'Chat baru') + '</button>'
+    + '<button class="ib sm hdel" data-delchat="' + c.id + '" title="Hapus">' + ico('trash') + '</button>'
+    + '</div>').join('');
 }
 
 /* ======================= view & aksi ======================= */
 
 function showView(v) {
   document.querySelectorAll('.view').forEach(el => el.classList.toggle('on', el.id === 'view-' + v));
-  document.querySelectorAll('[data-view]').forEach(el => {
-    if (el.closest('.pills') || el.closest('.rail')) el.classList.toggle('on', el.dataset.view === v);
-  });
+  document.querySelectorAll('.side [data-view]').forEach(el => el.classList.toggle('on', el.dataset.view === v));
   if (v === 'tabel') renderTable();
   if (v === 'chat') renderChat();
+  closeMobileSide();
 }
+
+function closeMobileSide() { $('#app').classList.remove('mopen'); }
+const isMobile = () => matchMedia('(max-width: 860px)').matches;
 
 function exportXlsx(rows) {
   const matrix = rows ? matrixFrom(rows) : exportMatrix();
@@ -383,16 +396,18 @@ function pick(attr) {
 
 function renderChips() {
   const t = filterTags(currentDefaults(), null);
-  if ($('#src').value === 'crossref') t.push('Crossref');
   $('#chips').innerHTML = t.map(x => '<button type="button" class="tag g" data-openfilter>' + esc(x) + '</button>').join('');
+  $('#srcPill').textContent = $('#src').value === 'crossref' ? 'Crossref' : 'OpenAlex';
 }
 
-function setTheme(t) {
-  if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+function applyTheme(t) {
+  if (t) document.documentElement.setAttribute('data-theme', t);
   else document.documentElement.removeAttribute('data-theme');
-  $('#lightBtn').classList.toggle('on', t === 'light');
-  $('#darkBtn').classList.toggle('on', t !== 'light');
-  try { localStorage.setItem('litrev.theme', t); } catch (e) {}
+  const dark = t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  const btn = $('#themeBtn');
+  btn.querySelector('svg').outerHTML = ico(dark ? 'sun' : 'moon');
+  $('#themeLbl').textContent = dark ? 'Tema terang' : 'Tema gelap';
+  btn.dataset.next = dark ? 'light' : 'dark';
 }
 
 /* ---------- impor xlsx lama (baca zip + XML di browser) ---------- */
@@ -475,6 +490,7 @@ async function importXlsx(file) {
     }
     saveTable();
     if (!cur) startChat();
+    showView('chat');
     botText('Gua impor <b>' + n + '</b> entri dari <b>' + esc(file.name) + '</b> ke tabel. Hasil pencarian baru bakal nyambung di bawahnya.');
   } catch (e) {
     toast('Gagal impor: ' + e.message);
@@ -504,7 +520,8 @@ function toggleMic() {
 function autosize() {
   const ta = $('#input');
   ta.style.height = 'auto';
-  ta.style.height = Math.min(ta.scrollHeight, 160) + 'px';
+  ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
+  setBusy(busy);
 }
 
 /* ======================= init ======================= */
@@ -513,21 +530,47 @@ document.addEventListener('DOMContentLoaded', () => {
   paintIcons();
   loadTable(); loadChats();
   try { $('#apiKey').value = localStorage.getItem('litrev.key') || ''; } catch (e) {}
-  let theme = 'dark';
-  try { theme = localStorage.getItem('litrev.theme') || 'dark'; } catch (e) {}
-  setTheme(theme);
+  let theme = '';
+  try { theme = localStorage.getItem('litrev.theme2') || ''; } catch (e) {}
+  applyTheme(theme);
+  try { if (localStorage.getItem('litrev.side') === 'collapsed') $('#app').classList.add('collapsed'); } catch (e) {}
 
-  cur = chats[0] || null;
-  if (!cur) startChat(); else { renderChat(); renderHistory(); }
+  $('#heroSugg').innerHTML = SUGGEST.slice(0, 4).map(s => '<button data-say="' + esc(s) + '">' + esc(s) + '</button>').join('');
+  cur = null;
+  startChat();
   renderChips();
 
-  // nav
-  document.addEventListener('click', (e) => {
-    const v = e.target.closest('[data-view]');
-    if (v && !v.closest('.msgs')) { showView(v.dataset.view); return; }
+  // sidebar
+  $('#menuBtn').onclick = () => {
+    if (isMobile()) { closeMobileSide(); return; }
+    const app = $('#app');
+    app.classList.toggle('collapsed');
+    try { localStorage.setItem('litrev.side', app.classList.contains('collapsed') ? 'collapsed' : ''); } catch (e) {}
+  };
+  $('#menuBtn2').onclick = () => $('#app').classList.add('mopen');
+  $('#scrim').onclick = closeMobileSide;
+  document.querySelectorAll('.side [data-view]').forEach(b => { b.onclick = () => showView(b.dataset.view); });
+  $('#newChatBtn').onclick = () => { startChat(); showView('chat'); };
+  $('#themeBtn').onclick = () => {
+    const next = $('#themeBtn').dataset.next;
+    try { localStorage.setItem('litrev.theme2', next); } catch (e) {}
+    applyTheme(next);
+  };
+
+  $('#hlist').addEventListener('click', (e) => {
+    const del = e.target.closest('[data-delchat]');
+    if (del) {
+      chats = chats.filter(c => c.id !== del.dataset.delchat);
+      saveChats();
+      if (cur && cur.id === del.dataset.delchat) startChat(); else renderHistory();
+      return;
+    }
+    const it = e.target.closest('[data-chat]');
+    if (it) {
+      cur = chats.find(c => c.id === it.dataset.chat);
+      renderHistory(); showView('chat');
+    }
   });
-  $('#lightBtn').onclick = () => setTheme('light');
-  $('#darkBtn').onclick = () => setTheme('dark');
 
   // composer
   const ta = $('#input');
@@ -546,12 +589,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // filter popover
   const togglePop = (force) => { const p = $('#pop'); p.hidden = force != null ? !force : !p.hidden; };
   $('#filterBtn').onclick = () => togglePop();
-  $('#railFilter').onclick = () => { showView('chat'); togglePop(true); };
+  $('#brandBtn').onclick = () => { showView('chat'); togglePop(true); };
   $('#chips').addEventListener('click', (e) => { if (e.target.closest('[data-openfilter]')) togglePop(true); });
   ['y1', 'y2', 'sort', 'src', 'oaOnly', 'artOnly'].forEach(id => $('#' + id).addEventListener('change', renderChips));
   $('#apiKey').addEventListener('change', () => { try { localStorage.setItem('litrev.key', $('#apiKey').value.trim()); } catch (e) {} });
   document.addEventListener('mousedown', (e) => {
-    if (!$('#pop').hidden && !e.target.closest('#pop') && !e.target.closest('#filterBtn') && !e.target.closest('#railFilter') && !e.target.closest('[data-openfilter]')) togglePop(false);
+    if (!$('#pop').hidden && !e.target.closest('#pop') && !e.target.closest('#filterBtn') && !e.target.closest('#brandBtn') && !e.target.closest('[data-openfilter]')) togglePop(false);
   });
 
   // impor
@@ -561,31 +604,8 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#importBtn').onclick = () => fileIn.click();
   fileIn.onchange = () => { if (fileIn.files[0]) importXlsx(fileIn.files[0]); fileIn.value = ''; };
 
-  // chat baru / menu
-  const fresh = () => { startChat(); showView('chat'); $('#history').classList.remove('open'); };
-  $('#newChatBtn').onclick = fresh; $('#railNew').onclick = fresh; $('#menuBtn').onclick = fresh;
-  $('#menuBtn').title = 'Chat baru';
-
-  // riwayat
-  $('#hlist').addEventListener('click', (e) => {
-    const del = e.target.closest('[data-delchat]');
-    if (del) {
-      e.stopPropagation();
-      chats = chats.filter(c => c.id !== del.dataset.delchat);
-      if (cur && cur.id === del.dataset.delchat) cur = chats[0] || null;
-      saveChats();
-      if (!cur) startChat(); else { renderChat(); renderHistory(); }
-      return;
-    }
-    const it = e.target.closest('[data-chat]');
-    if (it) {
-      cur = chats.find(c => c.id === it.dataset.chat);
-      renderChat(); renderHistory(); showView('chat');
-      $('#history').classList.remove('open');
-    }
-  });
-  $('#histBtn').onclick = () => $('#history').classList.toggle('open');
-  $('#histClose').onclick = () => $('#history').classList.remove('open');
+  // saran di layar awal
+  $('#heroSugg').addEventListener('click', (e) => { const b = e.target.closest('[data-say]'); if (b) send(b.dataset.say); });
 
   // klik di dalam percakapan
   $('#msgs').addEventListener('click', (e) => {
@@ -600,7 +620,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if ((b = el('[data-cite]'))) { const r = pick(b.dataset.cite); if (r) copyText(citation(r, $('#style').value), 'Referensi tercopy'); return; }
     if ((b = el('[data-intext]'))) { const r = pick(b.dataset.intext); if (r) copyText(inText(r), 'Sitasi dalam teks tercopy'); return; }
-    if ((b = el('[data-show]'))) { const m = cur.msgs[+b.dataset.show]; m.shown = m.results.length; commit(); renderChat(+b.dataset.show); return; }
+    if ((b = el('[data-all]'))) { loadAll(+b.dataset.all); return; }
     if ((b = el('[data-more]'))) { loadMore(+b.dataset.more); return; }
     if ((b = el('[data-addall]'))) {
       const m = cur.msgs[+b.dataset.addall]; let n = 0;
@@ -630,7 +650,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const needRows = (fn) => () => { if (!table.length) return toast('Tabel masih kosong'); fn(); };
   $('#xlsxBtn').onclick = needRows(() => exportXlsx());
   $('#topXlsx').onclick = needRows(() => exportXlsx());
-  $('#railXlsx').onclick = needRows(() => exportXlsx());
   $('#csvBtn').onclick = needRows(() => download('literature-review.csv', 'text/csv;charset=utf-8', toCSV(exportMatrix())));
   $('#tsvBtn').onclick = needRows(() => copyText(toTSV(exportMatrix()), 'Tercopy — tinggal paste di Excel'));
   $('#docBtn').onclick = needRows(() => download('literature-review.doc', 'application/msword', toDoc(exportMatrix())));

@@ -278,7 +278,7 @@ async function searchOpenAlex(q, opts, pg, broad) {
   if (opts.artOnly) filters.push('type:article');
   const sort = opts.sort === 'cited' ? 'cited_by_count:desc'
     : opts.sort === 'newest' ? 'publication_date:desc' : 'relevance_score:desc';
-  const url = 'https://api.openalex.org/works?per-page=25&page=' + pg + '&sort=' + sort
+  const url = 'https://api.openalex.org/works?per-page=' + (opts.size || 25) + '&page=' + pg + '&sort=' + sort
     + (broad ? '&search=' + encodeURIComponent(q) : '')
     + (filters.length ? '&filter=' + filters.join(',') : '')
     + (opts.apiKey ? '&api_key=' + encodeURIComponent(opts.apiKey) : '');
@@ -298,7 +298,7 @@ async function searchCrossref(q, opts, pg) {
   if (opts.oaOnly) filters.push('has-full-text:true');
   // Crossref kalau diurutkan by sitasi/tanggal jadi ga relevan, jadi ambil yang paling relevan lalu urutkan di sini
   const url = 'https://api.crossref.org/works?query.bibliographic=' + encodeURIComponent(q)
-    + '&rows=25&offset=' + ((pg - 1) * 25) + '&sort=relevance'
+    + '&rows=' + (opts.size || 25) + '&offset=' + ((pg - 1) * (opts.size || 25)) + '&sort=relevance'
     + (filters.length ? '&filter=' + filters.join(',') : '');
   const res = await fetch(url);
   if (!res.ok) throw new Error('Crossref error ' + res.status);
